@@ -1,0 +1,1853 @@
+*&---------------------------------------------------------------------*
+*& Include          ZSD_BP_TMDT_CT_F01
+*&---------------------------------------------------------------------*
+
+CALL SCREEN 9001.
+
+
+*&---------------------------------------------------------------------*
+*& Module status_9001 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_9001 OUTPUT.
+
+  progname = sy-repid.
+  dynnum   = sy-dynnr.
+  SET PF-STATUS 'ZMENU'.
+
+
+  DATA lv_lines TYPE i.
+  DESCRIBE TABLE gt_data LINES lv_lines.
+  IF lv_lines = 0.
+    tc_table-lines = 10.
+  ELSE.
+    tc_table-lines = lv_lines + 10.
+  ENDIF.
+
+
+  CASE sy-tcode.
+    WHEN 'ZTMD_01'. "Create
+ SET TITLEBAR 'TITLE'.
+
+     WHEN 'ZTMD_02'.  "Edit
+ SET TITLEBAR 'TITLE_2'.
+       IF sy-ucomm NE 'SAVE'.
+      IF NOT gt_data IS INITIAL.
+        read TABLE gt_data INTO gs_data INDEX tc_table-current_line.
+        SELECT *
+          FROM zsdtmd
+       INTO TABLE gt_data
+       WHERE zz_trans_code EQ gs_data-zz_trans_code.
+      ENDIF.
+      ENDIF.
+
+    WHEN  'ZTMD_03'. "Display
+ SET TITLEBAR 'TITLE_3'.
+      IF NOT gt_data IS INITIAL.
+        read TABLE gt_data INTO gs_data INDEX tc_table-current_line.
+        SELECT *
+          FROM zsdtmd
+       INTO TABLE gt_data
+       WHERE zz_trans_code EQ gs_data-zz_trans_code.
+      ENDIF.
+*
+  ENDCASE.
+
+  ENDMODULE.
+*&---------------------------------------------------------------------*
+*& Module SCREEN_MODIFICATION OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE screen_modification OUTPUT.
+  CASE sy-tcode.
+
+    WHEN 'ZTMD_03'.
+      LOOP AT SCREEN.
+        IF screen-group1 = 'HDL'.
+          screen-input = 1.
+          MODIFY SCREEN.
+        ELSE.
+        screen-input = 0.
+        MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+
+**     WHEN 'ZTMD_02'.
+**        LOOP AT SCREEN.
+**        IF screen-name = 'ZSDTMD-LIFNR' or screen-name = 'ZSDTMD-ZZ_TRANS_CODE' or screen-name = 'ZSDTMD-ZZ_TRANS_NAME'.
+**          screen-input = 0.
+**          MODIFY SCREEN.
+**        ELSE.
+**        screen-input = 1.
+**        MODIFY SCREEN.
+**        ENDIF.
+**      ENDLOOP.
+
+*      WHEN 'ZTMD_02'.
+*        if sy-ucomm NE 'SAVE'.
+*          clear gs_data.
+*        read TABLE gt_data INTO gs_data INDEX tc_table-current_line.
+*       if gs_data-zz_trans_code IS NOT INITIAL.
+*      SELECT SINGLE NAME1
+*      FROM LFA1
+*      INTO gs_data-zz_trans_name WHERE lifnr = gs_data-zz_trans_code.
+*      modify gt_data FROM gs_data INDEX tc_table-current_line .
+*      endif.
+*    endif.
+
+  ENDCASE.
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*& Module MODIFY_TABLE_CONTROL OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE modify_table_control OUTPUT.
+
+  CASE sy-tcode.
+    WHEN 'ZTMD_03'.
+      LOOP AT SCREEN.
+        IF screen-group1 = 'HDL'.
+          screen-input = 1.
+          else.
+           screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+
+ WHEN 'ZTMD_01' or 'ZTMD_02'.
+    if zsdtmd-zz_no_chambers IS NOT INITIAL.
+    case zsdtmd-zz_no_chambers.
+      when '000001'.
+        LOOP AT SCREEN.
+        IF screen-group1 = 'HD2' or screen-group1 = 'HD3' or screen-group1 = 'HD4' or screen-group1 = 'HD5' or screen-group1 = 'HD6'
+        or screen-group1 = 'HD7' or screen-group1 = 'HD8' or screen-group1 = 'HD9' or screen-group1 = 'HDI' .
+          screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      when '000002'.
+        LOOP AT SCREEN.
+        IF screen-group1 = 'HD3' or screen-group1 = 'HD4' or screen-group1 = 'HD5' or screen-group1 = 'HD6'
+        or screen-group1 = 'HD7' or screen-group1 = 'HD8' or screen-group1 = 'HD9' or screen-group1 = 'HDI' .
+          screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      when '000003'.
+        LOOP AT SCREEN.
+        IF screen-group1 = 'HD4' or screen-group1 = 'HD5' or screen-group1 = 'HD6' or screen-group1 = 'HD7'
+        or screen-group1 = 'HD8' or screen-group1 = 'HD9' or screen-group1 = 'HDI' .
+          screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      when '000004'.
+        LOOP AT SCREEN.
+        IF screen-group1 = 'HD5' or screen-group1 = 'HD6' or screen-group1 = 'HD7' or screen-group1 = 'HD8'
+        or screen-group1 = 'HD9' or screen-group1 = 'HDI' .
+          screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      when '000005'.
+        LOOP AT SCREEN.
+        IF screen-group1 = 'HD6' or screen-group1 = 'HD7' or screen-group1 = 'HD8' or screen-group1 = 'HD9'
+        or screen-group1 = 'HDI' .
+          screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      when '000006'.
+        LOOP AT SCREEN.
+        IF screen-group1 = 'HD7' or screen-group1 = 'HD8' or screen-group1 = 'HD9' or screen-group1 = 'HDI' .
+          screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      when '000007'.
+        LOOP AT SCREEN.
+        IF screen-group1 = 'HD8' or screen-group1 = 'HD9' or screen-group1 = 'HDI' .
+          screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      when '000008'.
+        LOOP AT SCREEN.
+      IF screen-group1 = 'HD9' or screen-group1 = 'HDI' .
+          screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      when '000009'.
+        LOOP AT SCREEN.
+        IF screen-group1 = 'HDI'.
+          screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+
+     ENDCASE.
+
+
+select SINGLE * FROM ZSD_AUTH INTO @DATA(ls_zsd_auth) WHERE zzuser_id eq @sy-uname.
+  if ls_zsd_auth IS INITIAL.
+      LOOP AT SCREEN.
+        IF screen-group1 = 'HDS'.
+          zsdtmd-zz_status = 'INACTIVE'.
+          screen-input = 0.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      else.
+      LOOP AT SCREEN.
+        IF screen-group1 = 'HDS'.
+          screen-input = 1.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      endif.
+  modify gt_data FROM zsdtmd INDEX tc_table-current_line.
+
+    ENDIF.
+    if sy-ucomm eq 'SAVE' AND zsdtmd-zz_truck_code IS NOT INITIAL AND zsdtmd-zz_driver_code IS NOT INITIAL.
+      LOOP AT SCREEN.
+          screen-input = 0.
+          MODIFY SCREEN.
+      ENDLOOP.
+      endif.
+      if sy-tcode eq 'ZTMD_02'.
+        LOOP AT SCREEN.
+        IF screen-name = 'ZSDTMD-ZZ_TRANS_CODE' .
+          screen-input = 0.
+          MODIFY SCREEN.
+        ELSE.
+        screen-input = 1.
+        MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+      if zsdtmd-zz_status eq 'BLACKLIST'.
+        LOOP AT SCREEN.
+          screen-input = 0.
+          MODIFY SCREEN.
+      ENDLOOP.
+      endif.
+      endif.
+
+    ENDCASE.
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*&      Module  READ_TABLE_CONTROL  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*MODULE read_table_control INPUT.
+*  READ TABLE gt_data INTO DATA(data) INDEX tc_table-current_line.
+*  IF sy-subrc = 0.
+*    MODIFY gt_data FROM zsdtmd INDEX tc_table-current_line.
+*
+*  ELSE.
+*    if zsdtmd-zz_trans_code IS NOT INITIAL.
+*      SELECT SINGLE NAME1
+*      FROM LFA1
+*      INTO zsdtmd-zz_trans_name WHERE lifnr = zsdtmd-zz_trans_code.
+*    endif.
+*    APPEND zsdtmd TO gt_data.
+*  ENDIF.
+*
+*ENDMODULE.
+
+MODULE read_table_control INPUT.
+  READ TABLE gt_data INTO DATA(data) INDEX tc_table-current_line.
+  IF sy-subrc = 0.
+if zsdtmd-zz_trans_code IS NOT INITIAL.
+      SELECT *
+      FROM LFA1
+      INTO TABLE @Data(lt_lifnr)
+      WHERE lifnr EQ @zsdtmd-zz_trans_code.
+        if  sy-subrc = 0.
+          SELECT SINGLE NAME1
+          FROM LFA1
+          INTO @zsdtmd-zz_trans_name WHERE lifnr = @zsdtmd-zz_trans_code.
+         MODIFY gt_data FROM zsdtmd INDEX tc_table-current_line.
+       else.
+          MESSAGE W001(ZSD_TMD) WITH 'Trasporter Code' tc_table-current_line zsdtmd-ZZ_TRANS_CODE DISPLAY LIKE 'E'.
+       endif.
+ endif.
+
+
+
+  ELSE.
+    if zsdtmd-zz_trans_code IS NOT INITIAL.
+      SELECT *
+      FROM LFA1
+      INTO TABLE @lt_lifnr
+      WHERE lifnr EQ @zsdtmd-zz_trans_code.
+        if sy-subrc = 0.
+          SELECT SINGLE NAME1
+          FROM LFA1
+          INTO @zsdtmd-zz_trans_name WHERE lifnr = @zsdtmd-zz_trans_code.
+          APPEND zsdtmd TO gt_data.
+       else.
+*         lv_row = tc_table-current_line.
+*         concatenate 'Transporter Code at 'lv_row' is incorrect' into lv_mg.
+*        MESSAGE i000(oo) WITH lv_mg.
+*        clear lv_mg.
+ MESSAGE W001(ZSD_TMD) WITH 'Trasporter Code' tc_table-current_line zsdtmd-ZZ_TRANS_CODE DISPLAY LIKE 'E'.
+       endif.
+     endif.
+
+  ENDIF.
+
+ENDMODULE.
+
+module field_validation input.
+*if cond1 .
+* message e152(5c) with text-006 text-007.
+*endif.
+endmodule.
+
+*&---------------------------------------------------------------------*
+*&      Module  user_command_9001  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_9001 INPUT.
+  if sy-ucomm eq 'BACK'.
+    CLEAR lv_mg.
+    lv_mg = 'Do you want to Save the Document?'.
+      CALL FUNCTION 'POPUP_TO_CONFIRM'
+          EXPORTING
+            titlebar              = 'Confirmation'
+            text_question         = lv_mg
+            text_button_1         = 'Yes'
+            text_button_2         = 'No'
+            default_button        = '2'
+            display_cancel_button = 'X'
+          IMPORTING
+            answer                = popup_return " to hold the FM's return value
+          EXCEPTIONS
+            text_not_found        = 1
+            OTHERS                = 2.
+        IF sy-subrc <> 0.
+          MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+          WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+        ENDIF.
+    endif.
+  CASE sy-ucomm.
+    WHEN 'EXIT' or 'OPT2'.
+      LEAVE PROGRAM.
+    WHEN 'SELECTED'or 'INFO'.
+    WHEN 'SAVE' or 'OPT1'.
+       CASE sy-tcode.
+        WHEN 'ZTMD_01'.
+
+      loop at gt_data INTO gs_data.
+
+       if gs_data-ZZ_TRANS_CODE       IS NOT INITIAL
+      AND gs_data-ZZ_TRANS_NAME       IS NOT INITIAL
+      AND gs_data-ZZ_REGIST_NO        IS NOT INITIAL
+      AND gs_data-ZZ_LOAD_VOL         IS NOT INITIAL
+      AND gs_data-ZZ_NO_CHAMBERS      IS NOT INITIAL
+      AND (   ( gs_data-ZZ_CAPACITY_1  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_1  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_1  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_2  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_2  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_2  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_3  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_3  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_3  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_4  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_4  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_4  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_5  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_5  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_5  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_6  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_6  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_6  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_7  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_7  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_7  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_8  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_8  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_8  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_9  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_9  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_9  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_10 IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_10 IS NOT INITIAL AND gs_data-ZZ_REF_DIP_10 IS NOT INITIAL ) )
+      AND gs_data-ZZ_DRIVER_NAME     IS NOT INITIAL
+      AND gs_data-ZZ_DRIVER_NIC      IS NOT INITIAL
+      AND gs_data-ZZ_DRIVER_LIC      IS NOT INITIAL
+      AND gs_data-ZZ_MAKE            IS NOT INITIAL
+      AND gs_data-ZZ_MODEL           IS NOT INITIAL
+      AND gs_data-ZZ_CALIB_DATE      IS NOT INITIAL
+      AND gs_data-ZZ_DIP_CHT_VAL_DAT IS NOT INITIAL
+      AND gs_data-zz_category IS NOT INITIAL
+      AND gs_data-zz_type IS NOT INITIAL.
+
+
+clear lv_gen_code.
+           CALL FUNCTION 'NUMBER_GET_NEXT'
+                 EXPORTING
+                   nr_range_nr             = '01'                "-- This hold the Newly generated Number
+                   object                  = 'ZSDTMD'       "---- Passing the Number Range Object
+                   quantity                = '00000000000000000001'
+                 IMPORTING
+                   number                  = lv_gen_code "-- Newly generated Number
+                   returncode              = lv_rc                   "-- The Return Code Number
+                 EXCEPTIONS
+                   interval_not_found      = 1
+                   number_range_not_intern = 2
+                   object_not_found        = 3
+                   quantity_is_0           = 4
+                   quantity_is_not_1       = 5
+                   interval_overflow       = 6
+                   buffer_overflow         = 7
+                   OTHERS                  = 8.
+               IF sy-subrc <> 0.
+               elseif gs_data-zz_trans_code IS NOT INITIAL AND lv_gen_code IS NOT INITIAL.
+               condense gs_data-zz_trans_code.
+               concatenate gs_data-zz_trans_code'-'lv_gen_code INTO DATA(lv_unique_id).
+               gs_data-zz_truck_code = lv_unique_id.
+               endif.
+                 gs_data-lifnr = gs_data-zz_trans_code.
+                 gs_data-zz_induc_by = sy-uname.
+                 gs_data-zz_induc_date = sy-datum.
+                 gs_data-zz_last_mod_by = sy-uname.
+                 gs_data-zz_last_mod_date = sy-datum.
+                 clear lv_gen_code.
+             CALL FUNCTION 'NUMBER_GET_NEXT'
+                 EXPORTING
+                   nr_range_nr             = '01'                "-- This hold the Newly generated Number
+                   object                  = 'ZSDTMD'       "---- Passing the Number Range Object
+                   quantity                = '00000000000000000001'
+                 IMPORTING
+                   number                  = lv_gen_code "-- Newly generated Number
+                   returncode              = lv_rc                   "-- The Return Code Number
+                 EXCEPTIONS
+                   interval_not_found      = 1
+                   number_range_not_intern = 2
+                   object_not_found        = 3
+                   quantity_is_0           = 4
+                   quantity_is_not_1       = 5
+                   interval_overflow       = 6
+                   buffer_overflow         = 7
+                   OTHERS                  = 8.
+               IF sy-subrc <> 0.
+
+               elseif gs_data-zz_trans_code IS NOT INITIAL AND lv_gen_code IS NOT INITIAL.
+               condense gs_data-zz_trans_code.
+               clear lv_unique_id.
+               concatenate gs_data-zz_trans_code'-'lv_gen_code INTO lv_unique_id.
+               gs_data-zz_driver_code = lv_unique_id.
+               endif.
+
+
+          MODIFY zsdtmd FROM gs_data.
+          modify gt_data FROM gs_data INDEX sy-tabix.
+
+               MESSAGE  'Record Saved Successfully in Table ZSDTMD' TYPE 'S'.
+
+      else.
+********************************************************     ,,
+        lv_row = sy-tabix.
+  if gs_data-ZZ_TRANS_CODE  IS INITIAL.
+    CLEAR lv_mg.
+    MESSAGE W000(ZSD_TMD) WITH 'Trasporter Code' lv_row INTO lv_mg.
+    wa_mg-mg = lv_mg.
+    append wa_mg TO it_mg.
+    endif.
+
+  IF gs_data-ZZ_TRANS_NAME  IS  INITIAL .
+     CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Trasporter Name' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+
+  IF gs_data-ZZ_REGIST_NO    IS  INITIAL .
+     CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Registration No.' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+
+  IF gs_data-ZZ_LOAD_VOL      IS  INITIAL .
+     CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Load Volume' lv_row   INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+*
+ IF gs_data-ZZ_NO_CHAMBERS    IS  INITIAL .
+    CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'No. of Chambers' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+
+IF gs_data-ZZ_NO_CHAMBERS  IS NOT INITIAL .
+
+  case gs_data-ZZ_NO_CHAMBERS.
+    when 1.
+*      IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+*         CLEAR lv_mg.
+*     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' tc_table-current_line  INTO lv_mg.
+*       wa_mg-mg = lv_mg.
+*     append wa_mg TO it_mg.
+*     endif.
+   IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 1 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_1  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+   when 2.
+ IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 1 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_1  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 2 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_2  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     when 3.
+    IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 1 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_1  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 2 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_2  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_3  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 3' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+    when 4.
+  IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 1 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_1  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 2 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_2  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_3  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 3' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     IF gs_data-ZZ_CAPACITY_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_4  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 4' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+    when 5.
+     IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 1 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_1  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 2 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_2  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_3  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 3' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     IF gs_data-ZZ_CAPACITY_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_4  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 4' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 5' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_5  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     when 6.
+IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 1 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_1  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 2 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_2  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_3  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 3' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     IF gs_data-ZZ_CAPACITY_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_4  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 4' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 5' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_5  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+      IF gs_data-ZZ_CAPACITY_6    IS  INITIAL .
+         CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 6' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_6    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 6' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_6  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 6' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     when 7.
+ IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 1 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_1  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 2 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_2  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_3  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 3' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     IF gs_data-ZZ_CAPACITY_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_4  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 4' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 5' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_5  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+      IF gs_data-ZZ_CAPACITY_6    IS  INITIAL .
+         CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 6' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_6    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 6' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_6  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 6' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+      IF gs_data-ZZ_CAPACITY_7    IS  INITIAL .
+         CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 7' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_7    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 7' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_7  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 7' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+       when 8.
+         IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 1 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_1  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 2 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_2  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_3  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 3' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     IF gs_data-ZZ_CAPACITY_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_4  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 4' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 5' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_5  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+      IF gs_data-ZZ_CAPACITY_6    IS  INITIAL .
+         CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 6' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_6    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 6' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_6  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 6' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+      IF gs_data-ZZ_CAPACITY_7    IS  INITIAL .
+         CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 7' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_7    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 7' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_7  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 7' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+       IF gs_data-ZZ_CAPACITY_8    IS  INITIAL .
+          CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 8' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_8    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 8' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_8  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 8' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+       when 9.
+ IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 1 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_1  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 2 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_2  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_3  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 3' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     IF gs_data-ZZ_CAPACITY_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_4  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 4' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 5' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_5  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+      IF gs_data-ZZ_CAPACITY_6    IS  INITIAL .
+         CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 6' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_6    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 6' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_6  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 6' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+      IF gs_data-ZZ_CAPACITY_7    IS  INITIAL .
+         CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 7' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_7    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 7' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_7  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 7' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+       IF gs_data-ZZ_CAPACITY_8    IS  INITIAL .
+          CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 8' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_8    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 8' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_8  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 8' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+       IF gs_data-ZZ_CAPACITY_9    IS  INITIAL .
+          CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 9' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_9    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 9' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_9  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 9' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     when 10.
+         IF gs_data-ZZ_CAPACITY_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_1    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 1 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_1  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 1' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_2    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 2 ' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_2  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 2' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_3    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 3' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_3  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 3' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     IF gs_data-ZZ_CAPACITY_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_4    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 4' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_4  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 4' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     IF gs_data-ZZ_CAPACITY_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_5    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 5' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_5  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 5' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+      IF gs_data-ZZ_CAPACITY_6    IS  INITIAL .
+         CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 6' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_6    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 6' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_6  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 6' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+      IF gs_data-ZZ_CAPACITY_7    IS  INITIAL .
+         CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 7' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_7    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 7' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_7  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 7' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+       IF gs_data-ZZ_CAPACITY_8    IS  INITIAL .
+          CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 8' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_8    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 8' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_8  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 8' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+       IF gs_data-ZZ_CAPACITY_9    IS  INITIAL .
+          CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 9' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_9    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 9' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_REF_DIP_9  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 9' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+       IF gs_data-ZZ_CAPACITY_10    IS  INITIAL .
+          CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Capacity 10' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+     if gs_data-ZZ_PRO_DIP_10    IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Product dip 10' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     if gs_data-ZZ_REF_DIP_10  IS INITIAL.
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Reference dip 10' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+     endif.
+
+     ENDCASE.
+   endif.
+
+ IF gs_data-ZZ_DRIVER_NAME   IS  INITIAL .
+    CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Driver Name' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+    IF gs_data-ZZ_DRIVER_NIC   IS  INITIAL .
+       CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Driver NIC' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+     IF gs_data-ZZ_DRIVER_LIC   IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Driver LIC' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+    IF gs_data-ZZ_MAKE   IS  INITIAL .
+       CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Make' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+     IF gs_data-ZZ_MODEL   IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Model' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+      IF gs_data-ZZ_CALIB_DATE   IS  INITIAL .
+         CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Calibration date' lv_row INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+     IF gs_data-ZZ_DIP_CHT_VAL_DAT   IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'DIP Chart Validity Date' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+   IF gs_data-zz_category   IS  INITIAL .
+      CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Category' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+     IF gs_data-zz_type   IS  INITIAL .
+        CLEAR lv_mg.
+     MESSAGE W000(ZSD_TMD) WITH 'Type' lv_row  INTO lv_mg.
+       wa_mg-mg = lv_mg.
+     append wa_mg TO it_mg.
+   endif.
+
+*********************************************************
+*LOOP AT it_mg INTO wa_mg.
+*        CONCATENATE wa_mg-mg lv_error_msg INTO lv_error_msg.
+*      ENDLOOP.
+*message e000(oo) with lv_error_msg.
+       MESSAGE  'Please Fill out all the mandatory fields' TYPE 'I'.
+* MESSAGE lv_error_msg TYPE 'I'.
+
+        endif.
+   ENDLOOP.
+*lt_exclude = VALUE slis_t_extab( ( fcode = '&ETA') ( fcode = '&OUP') ( fcode = '&ODN') ( fcode = '&ILT') ( fcode = '&OL0') ( fcode = '%SC')
+*                                         ( fcode = '%SC' ) ( fcode = '%SC' ) ( fcode = '%SC')  ( fcode = '%SC')  ( fcode = '%SC')  ( fcode = '%SC' )
+*                                         ( fcode = '%SC' )
+*                                         ( fcode = '&ESC') ( fcode = '&F12') ( fcode = '%ESC') ( fcode = '%F12') ( fcode = '&ALL' ) ( fcode = '&SAL' )
+*                                         ( fcode = '&ONT') ) .
+lt_log_fcat = VALUE SLIS_T_FIELDCAT_ALV(
+ ( FIELDNAME = 'MG'  TABNAME = 'IT_MG' outputlen = 80 SELTEXT_M = 'MESSAGES'  ) ).
+
+CALL FUNCTION 'REUSE_ALV_POPUP_TO_SELECT'
+            EXPORTING
+              i_title               = 'Error Messages'
+*              i_screen_start_column = 20
+              i_tabname             = 'IT_MG'
+              it_fieldcat           = lt_log_fcat[]
+              it_excluding          = lt_exclude
+            TABLES
+              t_outtab              = IT_MG
+            EXCEPTIONS
+              program_error         = 1
+              OTHERS                = 2.
+          IF sy-subrc <> 0.
+            MESSAGE i000(0k) WITH sy-subrc.
+          ENDIF.
+
+**if gt_data IS INITIAL.
+**  MESSAGE  'Empty Reocrd please fillout the required mandatory fields ' TYPE 'I'.
+**  endif.
+   when 'ZTMD_02'.
+
+     loop at gt_data INTO gs_data.
+
+       if gs_data-ZZ_TRANS_CODE       IS NOT INITIAL
+      AND gs_data-ZZ_TRANS_NAME       IS NOT INITIAL
+      AND gs_data-ZZ_REGIST_NO        IS NOT INITIAL
+      AND gs_data-ZZ_LOAD_VOL         IS NOT INITIAL
+      AND gs_data-ZZ_NO_CHAMBERS      IS NOT INITIAL
+      AND (   ( gs_data-ZZ_CAPACITY_1  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_1  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_1  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_2  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_2  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_2  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_3  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_3  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_3  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_4  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_4  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_4  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_5  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_5  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_5  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_6  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_6  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_6  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_7  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_7  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_7  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_8  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_8  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_8  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_9  IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_9  IS NOT INITIAL AND gs_data-ZZ_REF_DIP_9  IS NOT INITIAL )
+          OR ( gs_data-ZZ_CAPACITY_10 IS NOT INITIAL AND gs_data-ZZ_PRO_DIP_10 IS NOT INITIAL AND gs_data-ZZ_REF_DIP_10 IS NOT INITIAL ) )
+      AND gs_data-ZZ_DRIVER_NAME     IS NOT INITIAL
+      AND gs_data-ZZ_DRIVER_NIC      IS NOT INITIAL
+      AND gs_data-ZZ_DRIVER_LIC      IS NOT INITIAL
+      AND gs_data-ZZ_MAKE            IS NOT INITIAL
+      AND gs_data-ZZ_MODEL           IS NOT INITIAL
+      AND gs_data-ZZ_INDUC_DATE      IS NOT INITIAL
+      AND gs_data-ZZ_CALIB_DATE      IS NOT INITIAL
+      AND gs_data-ZZ_DIP_CHT_VAL_DAT IS NOT INITIAL.
+
+       if gs_data-zz_truck_code is NOT INITIAL.
+      SELECT t1~TKNUM, t1~ZZ_TRUCK_CODE, t2~ERDAT
+      FROM ZSDTMR AS t1
+      INNER JOIN VTTK AS t2 ON t1~TKNUM EQ t2~TKNUM
+      INTO TABLE @DATA(lt_last_del_dat)                                   "LT table for 1st query
+      WHERE t1~ZZ_TRUCK_CODE eq @gs_data-zz_truck_code.
+        if lt_last_del_dat IS NOT INITIAL.
+      SORT lt_last_del_dat BY TKNUM.
+      DESCRIBE TABLE lt_last_del_dat LINES DATA(lv_len).
+      gs_data-zz_last_deliv_dat = lt_last_del_dat[ lv_len ]-erdat.
+      endif.
+       endif.
+
+ select SINGLE * FROM zsdtmd INTO @DATA(gs_data1) WHERE zz_driver_code = @gs_data-zz_driver_code AND zz_truck_code = @gs_data-zz_truck_code.
+if gs_data1 <> gs_data.
+       gs_data-zz_last_mod_by = sy-uname.
+       gs_data-zz_last_mod_date = sy-datum.
+ modify zsdtmd FROM gs_data .
+ else.
+ MESSAGE W002(ZSD_TMD) WITH sy-tabix DISPLAY LIKE 'E'.
+ endif.
+
+      else.
+       MESSAGE  'Mandatory fields can not be empty ' TYPE 'I'.
+        endif.
+   ENDLOOP.
+***  MODIFY zsdtmd FROM TABLE gt_data.
+**     clear gs_data.
+**     if gt_data IS NOT INITIAL.
+**     loop at gt_data INTO gs_data.
+**       select SINGLE * FROM zsdtmd INTO @DATA(gs_data1) WHERE zz_driver_code = @gs_data-zz_driver_code AND zz_truck_code = @gs_data-zz_truck_code.
+**
+***         if gs_data1 IS NOT INITIAL.
+***move-CORRESPONDING gs_data to gs_data1.
+**       gs_data1-zz_last_mod_by = sy-uname.
+**       gs_data1-zz_last_mod_date = sy-datum.
+** modify zsdtmd FROM gs_data1.
+**
+** CLEAR gs_data1.
+**
+**       endloop.
+**       endif.
+
+      ENDCASE.
+
+
+  ENDCASE.
+
+ENDMODULE.
+
+***&---------------------------------------------------------------------*
+***&      Module  HELP_LIFNR  INPUT
+***&---------------------------------------------------------------------*
+***       text
+***----------------------------------------------------------------------*
+**MODULE HELP_LIFNR INPUT.
+***
+***  IF sy-tcode NE 'ZSD_TMDT'.
+**    SELECT LIFNR, EKORG, ERDAT, ERNAM
+**      FROM LFM1
+**      INTO TABLE @DATA(LT_LFM1).
+**
+**    CLEAR t_treturn1.
+**    CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+**      EXPORTING
+**        retfield        = 'LIFNR'
+**        dynpprog        = sy-repid
+**        dynpnr          = sy-dynnr
+**        dynprofield     = 'LS_ZSDTMD-LIFNR'
+**        value_org       = 'S'
+**      TABLES
+**        value_tab       = LT_LFM1
+**        return_tab      = t_treturn1
+**      EXCEPTIONS
+**        parameter_error = 1
+**        no_values_found = 2
+**        OTHERS          = 3.
+****
+**    READ TABLE t_treturn1 INDEX 1.
+**  MOVE t_treturn1-fieldval TO zsdtmd-lifnr.
+**
+**    CLEAR : t_treturn1 , t_treturn1[].
+**
+***
+**ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  HELP_CATEGORY  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE HELP_CATEGORY INPUT.
+*
+*  IF sy-tcode NE 'ZSD_TMDT'.
+    SELECT mandt, ZZCATEGORY
+      FROM ZSD_CAT
+      INTO TABLE @DATA(LT_CAT).
+
+    CLEAR t_treturn1.
+    CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+      EXPORTING
+        retfield        = 'ZZ_CATEGORY'
+        dynpprog        = sy-repid
+        dynpnr          = sy-dynnr
+        dynprofield     = 'LS_ZSDTMD-ZZ_CATEGORY'
+        value_org       = 'S'
+      TABLES
+        value_tab       = LT_CAT
+        return_tab      = t_treturn1
+      EXCEPTIONS
+        parameter_error = 1
+        no_values_found = 2
+        OTHERS          = 3.
+**
+    READ TABLE t_treturn1 INDEX 1.
+  MOVE t_treturn1-fieldval TO zsdtmd-zz_category.
+
+    CLEAR : t_treturn1 , t_treturn1[].
+*  ENDIF.
+*
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  HELP_TYPE  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE HELP_TYPE INPUT.
+*
+*  IF sy-tcode NE 'ZSD_TMDT'.
+    SELECT mandt, ZZTYPE
+      FROM ZSD_TYPE
+      INTO TABLE @DATA(LT_TYPE).
+
+    CLEAR t_treturn1.
+    CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+      EXPORTING
+        retfield        = 'ZZ_TYPE'
+        dynpprog        = sy-repid
+        dynpnr          = sy-dynnr
+        dynprofield     = 'LS_ZSDTMD-ZZ_TYPE'
+        value_org       = 'S'
+      TABLES
+        value_tab       = LT_TYPE
+        return_tab      = t_treturn1
+      EXCEPTIONS
+        parameter_error = 1
+        no_values_found = 2
+        OTHERS          = 3.
+**
+    READ TABLE t_treturn1 INDEX 1.
+  MOVE t_treturn1-fieldval TO zsdtmd-zz_type.
+
+*  CLEAR :  t_return1 , t_return1[].
+
+
+    CLEAR : t_treturn1 , t_treturn1[].
+*  ENDIF.
+*
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  HELP_ZZ_TRANS_CODE  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE HELP_ZZ_TRANS_CODE INPUT.
+*
+*  IF sy-tcode NE 'ZSD_TMDT'.
+    SELECT mandt, LIFNR, LAND1, NAME1
+      FROM LFA1
+      INTO TABLE @DATA(LT_TRANS).
+
+    CLEAR t_treturn1.
+    CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+      EXPORTING
+        retfield        = 'LIFNR'
+        dynpprog        = sy-repid
+        dynpnr          = sy-dynnr
+        dynprofield     = 'LS_ZSDTMD-ZZ_TRANS_CODE'
+        value_org       = 'S'
+      TABLES
+        value_tab       = LT_TRANS
+        return_tab      = t_treturn1
+      EXCEPTIONS
+        parameter_error = 1
+        no_values_found = 2
+        OTHERS          = 3.
+**
+      MOVE t_treturn1-fieldval TO zsdtmd-zz_trans_code.
+*    select SINGLE NAME1 FROM LFA1 INTO @Data(iv) WHERE lifnr eq @zsdtmd-zz_trans_code.
+
+
+
+    CLEAR : t_treturn1 , t_treturn1[].
+*  ENDIF.
+*
+ENDMODULE.

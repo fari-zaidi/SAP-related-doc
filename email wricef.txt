@@ -1,0 +1,21 @@
+1. First email body
+dear 
+
+Enfrashare Sales order #10000249 has been created.
+Please ensure the pricing.
+
+2. Second email body
+dear
+
+Enfrashare Sales order #10000249 Billing block has been removed
+please create billing respectivley 
+
+
+
+
+
+
+---------------------
+required one custom table for SAP User ID maintaince to escalagte emmails at the time of, 
+1. SO Creation 
+2. Billing block removed at SO Chnaged.

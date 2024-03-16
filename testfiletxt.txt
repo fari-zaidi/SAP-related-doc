@@ -1,0 +1,6 @@
+Shae Gill,Manager,2500000
+Gigi,Manager,50000
+Kashish,Developer,60000
+Gulfaham,Manager,70000
+Sara,Designer,55000
+Yousuf,Analyst,45000

@@ -1,0 +1,25 @@
+for Read and Create Operation (only import paramater keys)
+
+for Query Operation (Returning Parameter Primary Key)
+
+
+Service Hit
+for Read Call
+InitialSet(IvCall='I')
+
+for Query Call 
+TableSet?$filter=IvCall
+
+path
+/sap/opu/odata/sap/ZSN_TESTING_SRV/InitialSet(IvCall='I')
+
+/sap/opu/odata/sap/ZSN_TESTING_SRV/TableSet?$filter=IvCall eq 'D'
+
+
+
+
+gateway t-code for service activate
+/n/iwfnd/maint_service
+
+
+/n/iwfnd/routing -> for system alias

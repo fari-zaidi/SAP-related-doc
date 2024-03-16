@@ -1,0 +1,60 @@
+*&---------------------------------------------------------------------*
+*& Report ZSEARCHES
+*&---------------------------------------------------------------------*
+*& LINER SEARCH ALGORITHM:
+*1- Each value in an Array(in case of ABAP, Internal table) is search through a procedure in which the value is compared one by one.
+*&---------------------------------------------------------------------*
+REPORT ZSEARCHES.
+
+DATA : wa_data type int4,
+      ITAB_data type TABLE OF int4,
+      lv_lines type int1,
+      flag type int1 value 0,
+      pos type int1.
+
+SELECTION-SCREEN BEGIN OF SCREEN 0100 . "Where we create a Screen 0100
+SELECT-OPTIONS: s_data FOR wa_data. "Seclect-Option for multiple Input
+PARAMETERS: p_input type int4.
+SELECTION-SCREEN END OF SCREEN 0100.
+DATA: wa_sdata LIKE LINE OF s_data.
+Data : zbt TYPE i,
+       zint type i.
+START-OF-SELECTION.
+CALL SELECTION-SCREEN 0100.
+if s_data IS INITIAL.
+   Write:/ 'Sorry! Internal table is empty'.
+  endif.
+  if p_input IS INITIAL.
+     Write:/ 'Sorry! Value to be found is not given'.
+    endif.
+if s_data-option eq 'EQ'.
+  LOOP AT s_data INTO wa_sdata.
+    APPEND wa_sdata-low TO ITAB_data.
+  ENDLOOP.
+  elseif s_data-option eq 'BT'.
+
+     zbt = s_data-high - s_data-low .
+    zint = s_data-low.
+    APPEND zint TO ITAB_data.
+    do zbt TIMES.
+      zint = zint + 1.
+    APPEND zint TO ITAB_data.
+
+    enddo.
+ endif.
+
+  DESCRIBE TABLE ITAB_data LINES lv_lines." Here we get total number of record
+loop at ITAB_data into wa_data.
+  IF ( wa_data = p_input ).
+    Flag = 1.
+    pos = sy-tabix.
+    EXIT.
+    ENDIF.
+  ENDLOOP.
+  IF ( Flag = 1 ).
+    WRITE:/'LINEAR SEARCH'.
+    Write:/ 'Hurray! Found  your input @ position',
+            pos.
+    ELSE.
+      Write:/'Sorry! Not Found'.
+    ENDIF.

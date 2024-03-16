@@ -1,0 +1,201 @@
+FUNCTION ztm_process_create.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(IV_GET) TYPE  STRING OPTIONAL
+*"  EXPORTING
+*"     VALUE(IV_JSON) TYPE  STRING
+*"----------------------------------------------------------------------
+
+  DATA: lv_number_range(10) TYPE n,                          " Variable to hold Newly generated Number Range
+        lv_rc               TYPE inri-returncode.            " Variable to hold the Return Code
+
+  DATA: tm_task      TYPE ztm_task,
+        tm_relation  TYPE ztm_relation,
+        tm_assignee  TYPE STANDARD TABLE OF ztm_assignee  WITH HEADER LINE,
+        tm_rich_text TYPE STANDARD TABLE OF ztm_rich_text WITH HEADER LINE,
+
+        ls_itab      TYPE TABLE OF zls_create_task WITH HEADER LINE.
+
+  /ui2/cl_json=>deserialize( EXPORTING json = iv_get CHANGING data = ls_itab ).
+
+  IF NOT ls_itab-assignee IS INITIAL AND NOT ls_itab-tatt IS INITIAL AND NOT ls_itab-file_type IS INITIAL.
+    tm_task-tat = ls_itab-tatt+(4) && ls_itab-tatt+5(2) && ls_itab-tatt+8(2).     "   yyyy-MM-dd
+
+    ls_itab-active = 'X'.
+
+    IF NOT ls_itab-assignee IS INITIAL.
+      DATA: BEGIN OF t_split OCCURS 0,
+              aname TYPE uname,
+            END OF t_split.
+      SPLIT ls_itab-assignee AT ',' INTO TABLE t_split.
+
+      READ TABLE t_split TRANSPORTING NO FIELDS WITH KEY aname = sy-uname.
+      IF sy-subrc = 0.
+        ls_itab-mty = 'E'.
+        ls_itab-msg = 'Self assignment not allowed!'.
+      ENDIF.
+    ENDIF.
+
+    IF ls_itab-mty <> 'E'.
+
+      IF tm_task-tat < sy-datum.
+        ls_itab-mty = 'E'.
+        ls_itab-msg = 'Previous date not allow!'.
+      ELSE.
+        IF ls_itab-tid IS INITIAL.
+          CALL FUNCTION 'NUMBER_GET_NEXT'
+            EXPORTING
+              nr_range_nr             = '01'
+              object                  = 'ZTM_ID'
+            IMPORTING
+              number                  = lv_number_range
+              returncode              = lv_rc
+            EXCEPTIONS
+              interval_not_found      = 1
+              number_range_not_intern = 2
+              object_not_found        = 3
+              quantity_is_0           = 4
+              quantity_is_not_1       = 5
+              interval_overflow       = 6
+              buffer_overflow         = 7
+              OTHERS                  = 8.
+
+          CASE lv_rc.
+            WHEN space.   " Everything is working fine
+              ls_itab-tid = lv_number_range.
+            WHEN '1'.     " The assigned number lies in the critical area.
+            WHEN '2'.     " This was the last number, next time the first number will be assigned.
+            WHEN OTHERS.
+          ENDCASE.
+          CLEAR: lv_number_range, lv_rc.
+
+          tm_relation-id = tm_relation-parent = ls_itab-tid.
+        ELSE.
+          tm_relation-parent = ls_itab-tid.
+
+          SELECT SINGLE tat INTO @DATA(p_tat) FROM ztm_task WHERE tid = @tm_relation-parent AND tat < @tm_task-tat.
+          IF sy-subrc = 0.
+            CLEAR: ls_itab, tm_task, tm_relation.
+            ls_itab-mty = 'E'.
+            ls_itab-msg = `TAT date should be before or same as ` && p_tat+6(2) && '.' && p_tat+4(2) && '.' && p_tat+0(4).
+          ELSE.
+            CALL FUNCTION 'NUMBER_GET_NEXT'
+              EXPORTING
+                nr_range_nr             = '01'
+                object                  = 'ZTM_ID'
+              IMPORTING
+                number                  = lv_number_range
+                returncode              = lv_rc
+              EXCEPTIONS
+                interval_not_found      = 1
+                number_range_not_intern = 2
+                object_not_found        = 3
+                quantity_is_0           = 4
+                quantity_is_not_1       = 5
+                interval_overflow       = 6
+                buffer_overflow         = 7
+                OTHERS                  = 8.
+
+            CASE lv_rc.
+              WHEN space.   " Everything is working fine
+                tm_relation-id = ls_itab-tid = lv_number_range.
+              WHEN '1'.     " The assigned number lies in the critical area.
+              WHEN '2'.     " This was the last number, next time the first number will be assigned.
+              WHEN OTHERS.
+            ENDCASE.
+            CLEAR: lv_number_range, lv_rc.
+
+          ENDIF.
+
+        ENDIF.
+
+        IF NOT t_split[] IS INITIAL.
+          DATA: ls_assignee TYPE ztm_assignee.
+          LOOP AT t_split.
+            ls_assignee-tid   = ls_itab-tid.
+            ls_assignee-aname = t_split-aname.
+            ls_assignee-begda = sy-datum.
+            ls_assignee-endda = '99991231'.
+            ls_assignee-uname = sy-uname.
+            APPEND ls_assignee TO ls_itab-aname.
+            CLEAR ls_assignee.
+          ENDLOOP.
+        ENDIF.
+
+        MOVE-CORRESPONDING ls_itab TO tm_task.
+        IF NOT ls_itab-tatt IS INITIAL.
+          tm_task-tat = ls_itab-tatt+(4) && ls_itab-tatt+5(2) && ls_itab-tatt+8(2).     "   yyyy-MM-dd
+        ENDIF.
+
+        tm_task-status = 'O'.
+        tm_task-aedat  = sy-datum.
+        tm_task-aetim  = sy-uzeit.
+        tm_task-aenam  = sy-uname.
+
+        IF NOT tm_task-tid IS INITIAL.
+          PERFORM create_long_id USING tm_task-file_type CHANGING tm_task-long_id.
+
+          MODIFY: ztm_task FROM tm_task.
+          IF sy-subrc = 0.
+            MODIFY ztm_relation FROM       tm_relation.
+            MODIFY ztm_assignee FROM TABLE ls_itab-aname.
+
+            " Description
+            IF NOT ls_itab-discription IS INITIAL.
+              tm_rich_text-tid   = tm_task-tid.
+              tm_rich_text-type  = 'DESC'.
+              tm_rich_text-seqnr = 1.
+              tm_rich_text-time  = sy-uzeit.
+              tm_rich_text-begda = sy-datum.
+              tm_rich_text-endda = '99991231'.
+              tm_rich_text-uname = sy-uname.
+              tm_rich_text-text  = ls_itab-discription.
+              APPEND tm_rich_text.
+            ENDIF.
+
+            " Remarks
+            IF NOT ls_itab-remarks IS INITIAL.
+              tm_rich_text-tid   = tm_task-tid.
+              tm_rich_text-type  = 'RMKS'.
+              tm_rich_text-seqnr = 1.
+              tm_rich_text-time  = sy-uzeit.
+              tm_rich_text-begda = sy-datum.
+              tm_rich_text-endda = '99991231'.
+              tm_rich_text-uname = sy-uname.
+              tm_rich_text-text  = ls_itab-remarks.
+              APPEND tm_rich_text.
+            ENDIF.
+
+            IF NOT tm_rich_text[] IS INITIAL.
+              MODIFY ztm_rich_text FROM TABLE tm_rich_text.
+            ENDIF.
+
+            COMMIT WORK.
+
+            PERFORM notify_creater USING tm_task ls_itab-aname[].
+            PERFORM notify_assigne USING tm_task ls_itab-aname[].
+
+            ls_itab-mty = 'S'.
+            ls_itab-msg = 'Task created.'.
+          ELSE.
+            ls_itab-mty = 'E'.
+            ls_itab-msg = 'Task not created'.
+          ENDIF.
+        ENDIF.
+
+        MOVE-CORRESPONDING tm_task TO ls_itab.
+      ENDIF.
+
+    ENDIF.
+  ELSE.
+    ls_itab-mty = 'E'.
+    ls_itab-msg = 'Plesae set file type, Assignee & TAT for task.'.
+  ENDIF.
+
+  CLEAR: ls_itab-aname.
+
+  DATA(rv_json_data) = /ui2/cl_json=>serialize( data = ls_itab compress = abap_true ).
+  iv_json = rv_json_data.
+
+ENDFUNCTION.

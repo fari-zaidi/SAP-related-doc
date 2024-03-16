@@ -1,0 +1,393 @@
+*&---------------------------------------------------------------------*
+*& Report ZF28_APPROVE
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZF28_APPROVE.
+
+TYPES:  BEGIN OF zf28ls,
+BLDAT TYPE BKPF-BLDAT,
+BLART TYPE BKPF-BLART,
+BUKRS TYPE BKPF-BUKRS,
+BUDAT TYPE BKPF-BUDAT,
+MONAT TYPE BKPF-MONAT,
+WAERS TYPE BKPF-WAERS,
+KURSF TYPE BKPF-KURSF,
+BELNR TYPE BKPF-BELNR,
+WWERT TYPE BKPF-WWERT,
+XBLNR TYPE BKPF-XBLNR,
+BVORG TYPE BKPF-BVORG,
+BKTXT TYPE BKPF-BKTXT,
+PARGB TYPE RF05A-PARGB,
+AUGTX TYPE RF05A-AUGTX,
+KONTO TYPE RF05A-KONTO,
+GSBER TYPE BSEG-GSBER,
+WRBTR TYPE BSEG-WRBTR,
+DMBTR TYPE BSEG-DMBTR,
+SPESW TYPE RF05A-SPESW,
+SPESH TYPE RF05A-SPESH,
+VALUT TYPE BSEG-VALUT,
+PRCTR TYPE BSEG-PRCTR,
+SGTXT TYPE BSEG-SGTXT,
+ZUONR TYPE BSEG-ZUONR,
+VERTN TYPE RF05A-VERTN,
+AGKON TYPE RF05A-AGKON,
+AGKOA TYPE RF05A-AGKOA,
+XMULK TYPE RF05A-XMULK,
+AGUMS TYPE RF05A-AGUMS,
+XNOPS TYPE RF05A-XNOPS,
+XMULT_HBA TYPE RF05A-XMULT_HBA,
+AVSID TYPE RF05A-AVSID,
+XFIFO TYPE RF05A-XFIFO,
+XAUTS TYPE RF05A-XAUTS,
+XINVS TYPE RF05A-XINVS,
+ZDOC_NUM type CHAR10,
+ END OF zf28ls.
+
+DATA: zf28it TYPE TABLE OF zf28ls,
+      zf28wa TYPE zf28ls.
+
+DATA: popup_return(1) TYPE c,
+      lv_mg TYPE string,
+      progname    TYPE sy-repid,
+      dynnum      TYPE sy-dynnr,
+      ls_f28 TYPE ZSTR_F28.
+
+DATA : gt_data TYPE TABLE OF ZF28_TAB WITH HEADER LINE,
+       gt_data1 TYPE TABLE OF ZF28_TAB,
+       gs_data TYPE ZF28_TAB,
+       gs_data1 type ZTT_ZF281.
+
+DATA: zwa_f28 TYPE zstr_f28.
+
+
+CONTROLS tc_table TYPE TABLEVIEW USING SCREEN 9002.
+INCLUDE ZF28_F02.
+
+
+
+############################################################################
+############################################################################
+########################################################################
+########################################################################
+
+*&---------------------------------------------------------------------*
+*& Include          ZF28_F01
+*&---------------------------------------------------------------------*
+CALL SCREEN 9002.
+TABLES: bkpf, bseg, RF05A , ZF28_tab.
+DATA:GV_DOCNUM type char10.
+DATA LV type NUM1.
+*&---------------------------------------------------------------------*
+*& Module status_9001 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_9002 OUTPUT.
+  progname = sy-repid.
+  dynnum   = sy-dynnr.
+SET PF-STATUS 'STATUS'.
+
+
+
+
+     LOOP AT SCREEN.
+        IF screen-group1 = 'TLV'.
+            screen-INPUT = 0.
+          MODIFY SCREEN.
+        ENDIF.
+
+        IF screen-GROUP1 = 'G6'.
+            screen-INPUT = 0.
+          MODIFY SCREEN.
+        ENDIF.
+
+      ENDLOOP.
+
+
+ CASE sy-tcode.
+   WHEN 'ZAP_D'.
+******************************************************************
+*************************BOC Faryal TMC*****************************************
+
+SELECT * FROM zf28_tab INTO TABLE gt_data.
+  MOVE-CORRESPONDING ZF28_TAB to gs_data.
+  if gs_data IS NOT INITIAL.
+MODIFY ZF28_TAB FROM gs_data.
+modify GT_DATA FROM gs_data INDEX tc_table-current_line.
+endif.
+*************************EOC Faryal TMC*****************************************
+******************************************************************
+     IF gv_docnum is not INITIAL.
+        READ TABLE gt_data INTO gs_data INDEX tc_table-current_line.
+        SELECT *
+          FROM zf28_tab
+       INTO TABLE gt_data
+       WHERE zdoc_num EQ gv_docnum.
+      ENDIF.
+   ENDCASE.
+
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*& Module SCREEN_MODIFICATION OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE screen_modification OUTPUT.
+     LOOP AT SCREEN.
+        IF screen-group1 = 'TLV'.
+           screen-INPUT = 0.
+
+          MODIFY SCREEN.
+
+        ENDIF.
+
+
+      ENDLOOP.
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*& Module MODIFY_TABLE_CONTROL OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE modify_table_control OUTPUT.
+
+*modify gt_data FROM gs_data INDEX tc_table-current_line.
+modify GT_DATA FROM Zf28_tab INDEX tc_table-current_line.
+
+*************************BOC Faryal TMC*****************************************
+Select single ZLEVEL from ZF28_APPROVERS into lv
+        where USERNAME EQ sy-uname.
+        CASE LV.
+          WHEN '2'.
+        IF GS_DATA-ZSTATUS_APPROVAL1 EQ 'A'.
+*          OR GS_DATA-ZSTATUS_APPROVAL2 EQ 'A'.
+
+LOOP AT SCREEN.
+        IF screen-GROUP1 = 'G6'.
+           screen-INPUT = 0.
+         MODIFY SCREEN.
+        ENDIF.
+ENDLOOP.
+        ENDIF.
+ ENDCASE.
+*************************EOC Faryal TMC*****************************************
+
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*&      Module  READ_TABLE_CONTROL  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+
+MODULE read_table_control INPUT.
+
+  READ TABLE gt_data INTO DATA(data) INDEX tc_table-current_line.
+  IF sy-subrc = '0'.
+    MODIFY gt_data FROM zf28_tab INDEX tc_table-current_line.
+  ELSE.
+.
+    SELECT *
+     FROM zf28_tab
+       INTO TABLE gt_data1
+       WHERE zdoc_num = gv_docnum.
+    LOOP AT gt_data1 INTO gs_data.
+      APPEND gs_data TO gt_data.
+    ENDLOOP.
+
+*    GV_TOTAL = GV_TOTAL + ZADMINDATA-wrbtr.
+  ENDIF.
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_9001  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE USER_COMMAND_9002 INPUT.
+if sy-ucomm eq 'BACK' OR sy-ucomm eq 'CANCEL' OR sy-ucomm eq 'RW'.
+    CLEAR lv_mg.
+    lv_mg = 'Do you want to Exit?'. "'Do you want to Save the Document?'.
+      CALL FUNCTION 'POPUP_TO_CONFIRM'
+          EXPORTING
+            titlebar              = 'Confirmation'
+            text_question         = lv_mg
+            text_button_1         = 'Yes'
+            text_button_2         = 'No'
+            default_button        = '2'
+            display_cancel_button = 'X'
+          IMPORTING
+            answer                = popup_return " to hold the FM's return value
+          EXCEPTIONS
+            text_not_found        = 1
+            OTHERS                = 2.
+        IF sy-subrc <> 0.
+          MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+          WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+        ENDIF.
+    endif.
+
+    CASE sy-ucomm.
+    WHEN 'EXIT' or 'OPT1'. "'OPT2'.
+      LEAVE PROGRAM.
+    WHEN 'APPROVE'.
+
+      Select single ZLEVEL from ZF28_APPROVERS into lv
+        where USERNAME EQ sy-uname.
+        CASE LV.
+          WHEN '1'.
+            Select SINGLE * from Zf28_tab into gs_data
+              where ZDOC_NUM eq GV_DOCNUM.
+
+            GS_DATA-ZSTATUS_APPROVAL1 = 'A'.
+            MODIFY ZF28_TAB FROM gs_data.
+
+    CALL FUNCTION 'POPUP_TO_DISPLAY_TEXT'
+            EXPORTING
+             TITEL              = 'Document Approved'
+              textline1          = 'Approved Document No :'
+              TEXTLINE2          = GV_DOCNUM
+             START_COLUMN       = 25
+             START_ROW          = 6.
+              Refresh: GT_DATA.
+              MESSAGE  'Document Approved Successfully ' TYPE 'S'.
+      LEAVE PROGRAM.
+
+
+WHEN '2'.
+   Select SINGLE * from Zf28_tab into gs_data
+              where ZDOC_NUM eq GV_DOCNUM.
+   IF GS_DATA-ZSTATUS_APPROVAL1 EQ 'A'.
+        GS_DATA-ZSTATUS_APPROVAL2 = 'A'.
+            MODIFY ZF28_TAB FROM gs_data.
+
+           CALL FUNCTION 'POPUP_TO_DISPLAY_TEXT'
+            EXPORTING
+             TITEL              = 'Document Approved'
+              textline1          = 'Approved Document No :'
+              TEXTLINE2          = GV_DOCNUM
+             START_COLUMN       = 25
+             START_ROW          = 6.
+              Refresh: GT_DATA.
+              MESSAGE  'Document Approved Successfully ' TYPE 'S'.
+     ELSE.
+        MESSAGE  'You Can not Process this Document ' TYPE 'E'.
+     ENDIF.
+  WHEN '3'.
+     Select SINGLE * from Zf28_tab into gs_data
+              where ZDOC_NUM eq GV_DOCNUM.
+
+        IF GS_DATA-ZSTATUS_APPROVAL1 EQ 'A' AND  GS_DATA-ZSTATUS_APPROVAL2 EQ 'A'  .
+         GS_DATA-ZSTATUS_APPROVAL3 = 'A'.
+            MODIFY ZF28_TAB FROM gs_data.
+
+           CALL FUNCTION 'POPUP_TO_DISPLAY_TEXT'
+            EXPORTING
+             TITEL              = 'Document Approved'
+              textline1          = 'Approved Document No :'
+              TEXTLINE2          = GV_DOCNUM
+             START_COLUMN       = 25
+             START_ROW          = 6.
+              Refresh: GT_DATA.
+              MESSAGE  'Document Approved Successfully ' TYPE 'S'.
+     ELSE.
+        MESSAGE  'You Can not Process this Document ' TYPE 'E'.
+     ENDIF.
+ENDCASE.
+WHEN 'REJECT'.
+
+   DATA LV1 type NUM1.
+      Select single ZLEVEL from ZF28_APPROVERS into lv1
+        where USERNAME EQ sy-uname.
+        CASE LV1.
+          WHEN '1'.
+            Select SINGLE * from Zf28_tab into gs_data
+              where ZDOC_NUM eq GV_DOCNUM.
+
+            GS_DATA-ZSTATUS_APPROVAL1 = 'R'.
+            MODIFY ZF28_TAB FROM gs_data.
+
+    CALL FUNCTION 'POPUP_TO_DISPLAY_TEXT'
+            EXPORTING
+             TITEL              = 'Document Rejected'
+              textline1          = 'Rejected Document No :'
+              TEXTLINE2          = GV_DOCNUM
+             START_COLUMN       = 25
+             START_ROW          = 6.
+              Refresh: GT_DATA.
+              MESSAGE  'Document Rejected Successfully ' TYPE 'S'.
+
+
+
+WHEN '2'.
+   Select SINGLE * from Zf28_tab into gs_data
+              where ZDOC_NUM eq GV_DOCNUM.
+   IF GS_DATA-ZSTATUS_APPROVAL1 EQ 'A'.
+        GS_DATA-ZSTATUS_APPROVAL2 = 'R'.
+            MODIFY ZF28_TAB FROM gs_data.
+
+             CALL FUNCTION 'POPUP_TO_DISPLAY_TEXT'
+            EXPORTING
+             TITEL              = 'Document Rejected'
+              textline1          = 'Rejected Document No :'
+              TEXTLINE2          = GV_DOCNUM
+             START_COLUMN       = 25
+             START_ROW          = 6.
+              Refresh: GT_DATA.
+              MESSAGE  'Document Rejected Successfully ' TYPE 'S'.
+     ELSE.
+        MESSAGE  'You Can not Process this Document ' TYPE 'E'.
+     ENDIF.
+  WHEN '3'.
+     Select SINGLE * from Zf28_tab into gs_data
+              where ZDOC_NUM eq GV_DOCNUM.
+
+        IF GS_DATA-ZSTATUS_APPROVAL1 EQ 'A' AND  GS_DATA-ZSTATUS_APPROVAL2 EQ 'A'  .
+         GS_DATA-ZSTATUS_APPROVAL3 = 'R'.
+            MODIFY ZF28_TAB FROM gs_data.
+
+              CALL FUNCTION 'POPUP_TO_DISPLAY_TEXT'
+            EXPORTING
+             TITEL              = 'Document Rejected'
+              textline1          = 'Rejected Document No :'
+              TEXTLINE2          = GV_DOCNUM
+             START_COLUMN       = 25
+             START_ROW          = 6.
+              Refresh: GT_DATA.
+              MESSAGE  'Document Rejected Successfully ' TYPE 'S'.
+     ELSE.
+        MESSAGE  'You Can not Process this Document ' TYPE 'E'.
+     ENDIF.
+ENDCASE.
+
+  ENDCASE.
+ENDMODULE.
+
+############################################################################
+############################################################################
+########################################################################
+########################################################################
+PROCESS BEFORE OUTPUT.
+ MODULE STATUS_9002.
+ MODULE screen_modification .
+ LOOP AT gt_data INTO zf28_tab WITH CONTROL tc_table
+
+      CURSOR tc_table-current_line.
+     MODULE modify_table_control.
+
+    ENDLOOP.
+
+*
+PROCESS AFTER INPUT.
+   LOOP AT gt_data.
+      MODULE read_table_control .
+    ENDLOOP.
+
+ MODULE USER_COMMAND_9002.
+
+
+

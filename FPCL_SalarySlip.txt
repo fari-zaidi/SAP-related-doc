@@ -1,0 +1,996 @@
+*&**********************************************************************
+*& Program Definition : Salary Slip                                    *
+*&                                                                     *
+*&**********************************************************************
+*& PROGRAM CHANGES / Modification Logs :                               *
+*&**********************************************************************
+*&   Date   I Request    I Programmer   I     Changes                  *
+*&+-------------------------------------------------------------------+*
+*&
+*&   Revised on 15-Jun-2016 by Marrium Khan
+*&   Wage types 0225 & 0226 Included
+*&   Reference IMS # 1000002587
+*&                                                                  *
+*&+-------------------------------------------------------------------+*
+REPORT  zhr_zst_payslip_fpcl.
+TABLES: pernr,pyorgscreen, pytimescreen.
+
+NODES: payroll TYPE pay99_result.
+
+INFOTYPES:0001,0002,0008,0009,0015,0402,2006.
+
+SELECTION-SCREEN:BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+PARAMETERS tdest TYPE ssfcompop-tddest .
+PARAMETERS: pdf RADIOBUTTON GROUP g1 USER-COMMAND c1,print RADIOBUTTON GROUP g1 DEFAULT 'X'.
+SELECTION-SCREEN:END OF BLOCK b1.
+
+data: it_earn type standard table of zst_pay with header line.
+data: it_earn1 type standard table of zst_pay with header line.
+data: it_ded type standard table of zst_pay with header line.
+DATA payroll_data TYPE pay99_result.
+data: v_net type pa9900-ZZTEL0224B.
+DATA: ltx_rgdir LIKE pc261 OCCURS 0 WITH HEADER LINE,
+      lsx_v0 LIKE LINE OF payroll_data-inter-v0,
+      lsx_rt LIKE LINE OF payroll_data-inter-rt,
+      lfx_relid LIKE pcl2-relid,
+      lfx_molga LIKE t500l-molga,
+      lsx_t500l LIKE t500l.
+DATA: wa_rt LIKE LINE OF payroll_data-inter-rt,
+zpper(6), ztext TYPE t042z-text1,tded TYPE maxbt,tnet TYPE maxbt,lf_fm_name TYPE  rs38l_fnam.
+
+DATA:BEGIN OF tab OCCURS 1,
+  lgart TYPE lgart,
+  lgtxt TYPE t512t-lgtxt,
+  betrg TYPE zretro-betrg,
+  pord TYPE zarrear_wages-pord,
+END OF tab.
+
+*{   INSERT         PRDK900081                                        1
+data: ot_hrs type anzhl.
+data: ot_hrs_arr type anzhl.
+DATA: ot_hrs_act type anzhl.
+*}   INSERT
+DATA tab_a LIKE TABLE OF tab WITH HEADER LINE.
+
+
+DATA tab1 TYPE TABLE OF zst_payslip WITH HEADER LINE.
+data wa_tab1 type zst_payslip.
+
+DATA: head TYPE  zst_payslip_head.
+
+DATA:recalc.
+
+rp-def-boolean.
+
+DATA: BEGIN OF xrt OCCURS  80,
+       pagno TYPE i,
+       linno TYPE i,
+       windo LIKE t512e-windo,
+       grppe LIKE t512e-grppe,
+       kennz(1),
+       seqno(2),
+       seqn2 LIKE p512e-seqn2,
+       rueckd TYPE d,
+       fpbeg LIKE pc261-fpbeg,
+       fpend LIKE pc261-fpend,
+       apznr LIKE pc207-apznr,
+       cntr1 LIKE pc207-cntr1,
+       cntr2 LIKE pc207-cntr2,
+       cntr3 LIKE pc207-cntr3,
+       alznr LIKE pc207-alznr,
+       c1znr LIKE pc207-c1znr,
+       btznr LIKE pc207-btznr,
+       abznr LIKE pc207-abznr,
+       v0typ LIKE pc207-v0typ,
+       v0znr LIKE pc207-v0znr,
+       lfdnr LIKE t512e-lfdnr,
+       colno LIKE t512e-colno,
+       tname LIKE t512e-tabna,
+       table LIKE t512e-tabna,
+       splts LIKE boolean,
+       abart LIKE t503-abart,
+       lgart TYPE lgart,
+       zeinh LIKE p0009-zeinh,
+       betpe      LIKE pc207-betpe,
+       anzhl      LIKE pc207-anzhl,
+       betrg      LIKE zretro-betrg,
+       betpc(20) TYPE c,
+       ltype LIKE t512e-ltype,
+       fconv LIKE t512e-fconv,
+       regel LIKE t512e-regel,
+       delet LIKE boolean,
+       tabix(5) TYPE n,
+       sortf(20)  TYPE c,
+       pernr LIKE pernr-pernr,
+       rte_curr LIKE pc207-rte_curr,
+     END OF xrt.
+
+data: zdesig(100) type c.      "----------------------------------------------------------------------------
+
+DATA:BEGIN OF rt_2 OCCURS 250.
+        INCLUDE STRUCTURE pc207.
+DATA:
+    fpbeg     LIKE xrt-fpbeg,
+    fpend     LIKE xrt-fpend,
+    sortf     LIKE xrt-sortf,
+    pernr     LIKE xrt-pernr,                               "VKIK011129
+    seqno     LIKE pc200-seqno,            " WLIK027494
+    delet(1)  TYPE c,
+  END OF rt_2.
+DATA rt_2_c LIKE TABLE OF rt_2 WITH  HEADER LINE.
+DATA h_ind(1).
+
+AT SELECTION-SCREEN OUTPUT.
+
+  LOOP AT SCREEN.
+    IF print NE 'X'.
+      IF screen-name = 'TDEST'.
+        screen-input = 0.
+        MODIFY SCREEN.
+      ELSE.
+        IF screen-name = 'TDEST'.
+          screen-input = 1.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+
+
+
+START-OF-SELECTION.
+
+GET pernr.
+
+    check pernr-werks = 'FPCL'.
+  CLEAR: head.
+  MOVE-CORRESPONDING pernr TO head.
+  rp_provide_from_last p0002 space space pyendda.
+  MOVE:p0002-anred TO head-anred.
+
+  SELECT SINGLE atext  FROM  t522t INTO head-atext WHERE anred EQ head-anred AND sprsl = 'E'.
+    "B.O.C Mehwish 27-07-2010
+*  SELECT SINGLE orgtx FROM t527x INTO head-orgtx WHERE orgeh = pernr-orgeh AND sprsl = 'EN'
+*  AND endda = '99991231'.
+    SELECT SINGLE stext FROM hrp1000 INTO head-orgtx WHERE objid = pernr-orgeh AND langu = 'E' AND plvar = '01'
+   AND otype = 'O' AND begda le pybegda and endda ge pyendda.
+    "E.O.C Mehwish
+  rp_provide_from_last p0008 space pybegda pyendda.
+
+*  SELECT SINGLE plstx FROM t528t INTO head-plstx WHERE plans = p0001-plans AND
+*  sprsl = 'E' AND otype = 'S' .
+  rp_provide_from_last p0001 space pybegda pyendda.
+
+*  concatenate p0001-ZZDESIGNATION '(' p0001-ZZDESIG_UNITWS ')' into zdesig separated by space. "Commented by mkhan13 on 21-Sep-2016
+
+  zdesig = p0001-ZZDESIG_UNITWS. " Added by mkhan13 on 21-Sep-2016
+
+  "head-plstx = p0001-ZZDESIG_UNITWS.
+  data: BEGIN OF itxt OCCURS 0,
+    line(40),
+    end of itxt.
+   SPLIT head-plstx at ' ' INTO TABLE itxt.
+
+CLEAR head-plstx.
+
+   loop at itxt.
+     CALL FUNCTION 'STRING_UPPER_LOWER_CASE'
+       EXPORTING
+         DELIMITER       = ' '
+         STRING1         = itxt-line
+      IMPORTING
+        STRING          = itxt-line
+      EXCEPTIONS
+        NOT_VALID       = 1
+        TOO_LONG        = 2
+        TOO_SMALL       = 3
+        OTHERS          = 4
+               .
+     IF SY-SUBRC <> 0.
+* Implement suitable error handling here
+       else.
+         CONCATENATE head-plstx itxt-line INTO head-plstx SEPARATED BY space.
+     CONDENSE head-plstx.
+
+     ENDIF.
+
+     endloop.
+
+
+*   SELECT SINGLE stext FROM hrp1000 INTO head-plstx WHERE objid = p0001-plans AND langu = 'E' AND plvar = '01'
+*   AND otype = 'S' AND begda le pybegda and endda ge pyendda.
+
+  SELECT SINGLE btext FROM t001p INTO head-btext WHERE werks = pernr-werks AND btrtl = pernr-btrtl.
+  rp_provide_from_last p0009 space pybegda pyendda.
+  MOVE p0009-bankn TO head-bankn.
+  SELECT SINGLE banka brnch ort01 FROM bnka INTO (head-banka,head-brnch,head-ort01)
+   WHERE bankl = p0009-bankl AND banks = p0009-banks.
+  select single ZZTEL0224B from pa9900 into v_net where pernr = pernr-pernr and endda = pyendda.
+
+GET payroll.
+
+*{   INSERT         PRDK900081                                        2
+
+clear: ot_hrs, ot_hrs_arr.
+*}   INSERT
+  CLEAR: payroll_data,ltx_rgdir[],ltx_rgdir,tab[],tab,tab1[],tab1,
+  zpper,ztext,tded,tnet,tab_a[],tab_a,
+  recalc,h_ind.
+
+  MOVE-CORRESPONDING payroll TO payroll_data.
+  MOVE payroll_data-inter-versc-fpper TO zpper.
+  IF zpper EQ payroll_data-inter-versc-inper.
+    LOOP AT payroll_data-inter-rt INTO wa_rt.
+      MOVE wa_rt-lgart TO tab-lgart.
+      MOVE wa_rt-betrg TO tab-betrg.
+*{   INSERT         PRDK900081                                        1
+*break abapdev.
+      if wa_rt-lgart = '1204'.
+      ot_hrs = wa_rt-anzhl.
+      endif.
+*}   INSERT
+
+      SELECT SINGLE ind FROM ztb_hr_wtype_ind INTO tab-pord WHERE lgart = tab-lgart.
+      if sy-subrc = 0.
+      IF tab-pord is INITIAL.
+        IF tab-betrg GE 0.
+          tab-pord = 'P'.
+        ELSE.
+          tab-pord = 'D'.
+        ENDIF.
+      ENDIF.
+      APPEND tab.
+      CLEAR tab.
+      endif.
+    ENDLOOP.
+
+    DELETE tab where betrg is INITIAL.
+
+    IF payroll_data-inter-versc-inper NE '000000'.
+      PERFORM get_arrears.
+    ENDIF.
+    IF rt_2[] IS NOT INITIAL.
+      LOOP AT rt_2.
+        MOVE rt_2-lgart TO tab_a-lgart.
+*{   INSERT         PRDK900081                                        3
+      if rt_2-lgart = '1204'.
+      ot_hrs_arr = rt_2-anzhl.
+      endif.
+*}   INSERT
+        MOVE rt_2-betrg TO tab_a-betrg.
+        COLLECT tab_a.
+      ENDLOOP.
+    ENDIF.
+
+    DELETE tab_a WHERE betrg is INITIAL.
+    LOOP AT tab_a.
+      SELECT SINGLE ind FROM ztb_hr_wtype_ind INTO tab_a-pord WHERE lgart = tab_a-lgart.
+      if sy-subrc = 0.
+      IF tab_a-pord IS INITIAL.
+        IF tab_a-betrg GE 0.
+          tab_a-pord = 'P'.
+        ELSE.
+          tab_a-pord = 'D'.
+        ENDIF.
+      ENDIF.
+      MODIFY tab_a TRANSPORTING pord.
+      else.
+      delete tab_a.
+      endif.
+    ENDLOOP.
+
+*  ENDIF.
+    DELETE  tab WHERE ( lgart = '1LLB' OR lgart = '2LLB' OR lgart = '3LLB' OR lgart = '4LLB'
+                        OR lgart = '5LLB' OR lgart = '6LLB' OR lgart = '7LLB' OR lgart = '8LLB'
+                        OR lgart = '9LLB' OR lgart = '3002' OR lgart = '3004' OR lgart = '9000'
+                        OR lgart = '9599' OR lgart = '9502' OR lgart = '9500' OR lgart = '9512'
+                        OR lgart = '9513' OR lgart = '9514'  or lgart = '9504' or lgart = '7006' ).
+    "B.O.C Mehwish 28-07-2010
+*    LOOP AT tab WHERE pord = 'D' AND betrg LT 0.
+*      tab-betrg = tab-betrg * -1.
+*      MODIFY tab TRANSPORTING betrg.
+*    ENDLOOP.
+    LOOP AT tab WHERE pord = 'D' AND ( lgart ne '1LRP' and lgart ne '2LRP' and lgart ne '3LRP' and lgart ne '4LRP'
+                                      and lgart ne '5LRP' and lgart ne '6LRP' and lgart ne '7LRP' and lgart ne '8LRP'
+                                      and lgart ne '9LRP' ).
+      tab-betrg = tab-betrg * -1.
+      MODIFY tab TRANSPORTING betrg.
+    ENDLOOP.
+    "E.O.C Mehwish
+
+    DELETE  tab_a WHERE ( lgart = '1LLB' OR lgart = '2LLB' OR lgart = '3LLB' OR lgart = '4LLB'
+                        OR lgart = '5LLB' OR lgart = '6LLB' OR lgart = '7LLB' OR lgart = '8LLB'
+                        OR lgart = '9LLB' OR lgart = '3002' OR lgart = '3004' OR lgart = '9000'
+                        OR lgart = '9599' OR lgart = '9502' OR lgart = '9500' OR lgart = '9512'
+                        OR lgart = '9513' OR lgart = '9514' or lgart = '9504' or lgart = '7006' ).
+
+"B.O.C Mehwish 28-07-2010
+*    LOOP AT tab_a WHERE pord = 'D' AND betrg LT 0.
+*      tab_a-betrg = tab_a-betrg * -1.
+*      MODIFY tab_a TRANSPORTING betrg.
+*    ENDLOOP.
+
+  LOOP AT tab_a WHERE pord = 'D' AND ( lgart ne '1LRP' and lgart ne '2LRP' and lgart ne '3LRP' and lgart ne '4LRP'
+                                      and lgart ne '5LRP' and lgart ne '6LRP' and lgart ne '7LRP' and lgart ne '8LRP'
+                                      and lgart ne '9LRP' ).
+      tab_a-betrg = tab_a-betrg * -1.
+      MODIFY tab_a TRANSPORTING betrg.
+    ENDLOOP.
+    "E.O.C Mehwish
+
+
+    PERFORM format_payroll_results TABLES tab tab_a.
+    IF payroll_data-inter-versc-inper = '000000' AND payroll_data-evp-payty = 'A'."off cycle payroll
+      MOVE payroll_data-inter-versc-fpbeg+0(6) TO zpper.
+      LOOP AT tab1 WHERE lgart_p = '1000' OR lgart_p = '1200' OR lgart_p = '1500'.
+        h_ind = 'B'.
+      ENDLOOP.
+      IF h_ind IS INITIAL.
+        LOOP AT tab1 WHERE lgart_p = '1005' OR lgart_p = '1210' .
+          h_ind = 'L'.
+        ENDLOOP.
+      ENDIF.
+*{   INSERT         PRDK900081                                        4
+
+*}   INSERT
+    ENDIF.
+
+*{   INSERT         PRDK900081                                        5
+
+      clear: ot_hrs_act.
+      ot_hrs_act = ot_hrs + ot_Hrs_arr.
+*}   INSERT
+    IF print = 'X'.
+      PERFORM call_form.
+    ELSE.
+      PERFORM convert_pdf_mail.
+    ENDIF.
+  ENDIF.
+
+END-OF-SELECTION.
+*&---------------------------------------------------------------------*
+*&      Form  GET_ARREARS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_arrears .
+  SUBMIT zrpcedtx0 AND RETURN
+          WITH andruck = ' '
+          WITH formular = 'FPCL'
+          WITH pnpabkrs = payroll_data-inter-versc-abkrs
+          WITH pnppabrj = payroll_data-inter-versc-inper+0(4)
+          WITH pnppabrp = payroll_data-inter-versc-inper+4(2)
+          WITH pnppernr = pernr-pernr
+          WITH pnptimra = 'X'
+          WITH pnpxabkr = 'Z0'
+          WITH rueckd = 'X'
+          WITH rueckr = 'D'
+          WITH sort_rr = '1'
+          WITH sprache = 'B'
+.
+
+*  IMPORT xrt FROM MEMORY ID 'ZMH_XRT'.
+  IMPORT rt_2_c FROM MEMORY ID 'ZMH_RT2_A'.
+*  FREE MEMORY ID 'ZMH_XRT'.
+  FREE MEMORY ID 'ZMH_RT2_A'.
+  rt_2[] = rt_2_c[].
+
+
+
+ENDFORM.                    " GET_PREV_PAYROLL
+*&---------------------------------------------------------------------*
+*&      Form  FORMAT_PAYROLL_RESULTS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_XRT  text
+*----------------------------------------------------------------------*
+FORM format_payroll_results  TABLES    tab STRUCTURE tab
+                                       tab_a STRUCTURE tab.
+  DATA:BEGIN OF tab_c OCCURS 1,
+    lgart TYPE lgart,
+    lgtxt TYPE t512t-lgtxt,
+    betrg TYPE zretro-betrg,
+    pord(1),
+  END OF tab_c.
+  DATA fl.
+  SORT tab BY lgart.
+  LOOP AT tab.
+    AT END OF lgart.
+      SUM.
+      MOVE tab-lgart TO tab_c-lgart.
+      MOVE tab-betrg TO tab_c-betrg.
+      fl = 'X'.
+    ENDAT.
+    IF fl = 'X'.
+      CLEAR fl.
+      MOVE tab-pord TO tab_c-pord.
+      APPEND tab_c.
+      CLEAR tab_c.
+    ENDIF.
+
+  ENDLOOP.
+
+  CLEAR: tab[],tab.
+  LOOP AT tab_c WHERE ( lgart BETWEEN '0001' AND '9999' ).
+    MOVE-CORRESPONDING tab_c TO tab.
+    APPEND tab.
+    CLEAR tab.
+  ENDLOOP.
+
+  LOOP AT tab.
+    SELECT SINGLE lgtxt FROM t512t
+       INTO tab-lgtxt WHERE molga = '99'
+      AND lgart = tab-lgart AND sprsl = 'EN'.
+    IF sy-subrc NE 0.
+      SELECT SINGLE lgtxt FROM t512s
+        INTO tab-lgtxt WHERE molga = '99'
+       AND lgart = tab-lgart AND sprsl = 'EN'.
+    ENDIF.
+    MODIFY tab TRANSPORTING lgtxt.
+  ENDLOOP.
+
+  CLEAR:tab_c[],tab_c.
+  SORT tab_a BY lgart.
+  LOOP AT tab_a.
+    AT END OF lgart.
+      SUM.
+      MOVE tab_a-lgart TO tab_c-lgart.
+      MOVE tab_a-betrg TO tab_c-betrg.
+      fl = 'X'.
+    ENDAT.
+    IF fl = 'X'.
+      CLEAR fl.
+      MOVE tab_a-pord TO tab_c-pord.
+      APPEND tab_c.
+      CLEAR tab_c.
+    ENDIF.
+  ENDLOOP.
+
+  CLEAR: tab_a[],tab_a.
+  LOOP AT tab_c WHERE ( lgart BETWEEN '0001' AND '9999' ).
+    MOVE-CORRESPONDING tab_c TO tab_a.
+    APPEND tab_a.
+    CLEAR tab_a.
+  ENDLOOP.
+
+  LOOP AT tab WHERE pord = 'P'.
+    tab1-lgart_p = tab-lgart.
+    tab1-lgtxt_p = tab-lgtxt.
+    tab1-betrg_p = tab-betrg.
+    READ TABLE tab_a WITH KEY lgart = tab-lgart.
+    IF sy-subrc EQ 0.
+      tab1-lgart_ap = tab_a-lgart.
+      tab1-arrear_p = tab_a-betrg.
+      DELETE tab_a INDEX sy-tabix.
+    ENDIF.
+    APPEND tab1.
+    CLEAR tab1.
+  ENDLOOP.
+
+  IF tab_a[] IS NOT INITIAL.
+    LOOP AT tab_a WHERE pord = 'P'.
+      MOVE tab_a-lgart TO tab1-lgart_p.
+      MOVE tab_a-lgart TO tab1-lgart_ap.
+      MOVE tab_a-betrg TO tab1-arrear_p.
+      PERFORM get_wagetype_text USING tab_a-lgart
+                                CHANGING tab1-lgtxt_p.
+      APPEND tab1.
+    ENDLOOP.
+  ENDIF.
+  CLEAR tab.
+
+  IF tab1[] IS NOT INITIAL.
+    LOOP AT tab1.
+      READ TABLE tab WITH KEY pord = 'D' .
+      IF sy-subrc = 0 .
+        tab1-lgart_d = tab-lgart.
+        tab1-lgtxt_d = tab-lgtxt.
+        tab1-betrg_d = tab-betrg.
+        DELETE tab INDEX sy-tabix.
+      ENDIF.
+      IF tab1-betrg_d IS NOT INITIAL.
+        MODIFY tab1 TRANSPORTING lgart_d lgtxt_d betrg_d WHERE lgart_p EQ tab1-lgart_p AND lgart_d EQ ' '.
+        READ TABLE tab_a WITH KEY lgart = tab1-lgart_d.
+        IF sy-subrc = 0.
+          tab1-lgart_ad = tab_a-lgart.
+          tab1-arrear_d = tab_a-betrg.
+          DELETE tab_a INDEX sy-tabix.
+          MODIFY tab1 TRANSPORTING lgart_ad arrear_d WHERE lgart_d = tab_a-lgart.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ELSE.
+    LOOP AT tab WHERE pord = 'D'.
+      tab1-lgart_d = tab-lgart.
+      tab1-lgtxt_d = tab-lgtxt.
+      tab1-betrg_d = tab-betrg.
+      READ TABLE tab_a WITH KEY lgart = tab1-lgart_d.
+      IF sy-subrc = 0.
+        tab1-lgart_ad = tab_a-lgart.
+        tab1-arrear_d = tab_a-betrg.
+        DELETE tab_a INDEX sy-tabix.
+      ENDIF.
+      APPEND tab1.
+      CLEAR tab1.
+    ENDLOOP.
+  ENDIF.
+
+  CLEAR tab1.
+  IF tab[] IS NOT INITIAL.
+    LOOP AT tab WHERE pord = 'D'.
+      tab1-lgart_d = tab-lgart.
+      tab1-lgtxt_d = tab-lgtxt.
+      tab1-betrg_d = tab-betrg.
+      READ TABLE tab_a WITH KEY lgart = tab1-lgart_d.
+      IF sy-subrc = 0.
+        tab1-lgart_ad = tab_a-lgart.
+        tab1-arrear_d = tab_a-betrg.
+        DELETE tab_a INDEX sy-tabix.
+      ENDIF.
+      APPEND tab1.
+      CLEAR tab1.
+    ENDLOOP.
+  ENDIF.
+  CLEAR tab1.
+  data: rownum type sy-tabix.
+
+  IF tab_a[] IS NOT INITIAL.
+    LOOP AT tab_a WHERE pord = 'D'.
+      MOVE tab_a-lgart TO tab1-lgart_d.
+      MOVE tab_a-lgart TO tab1-lgart_ad.
+      MOVE tab_a-betrg TO tab1-arrear_d.
+      PERFORM get_wagetype_text USING tab_a-lgart
+                                CHANGING tab1-lgtxt_d.
+
+      modify tab1 TRANSPORTING lgart_d lgart_ad arrear_d lgtxt_d WHERE lgart_d = ''.   """"""""""""" marked as comment by mni
+      if sy-subrc ne 0.
+      APPEND tab1.
+      endif.
+      CLEAR tab1.
+    ENDLOOP.
+  ENDIF.
+ clear it_earn[].
+ clear it_earn1[].
+ clear it_ded[].
+
+ loop at tab1 into wa_tab1 where ( LGART_P = '0001' OR LGART_P = '0005' OR LGART_P = '0009' OR LGART_P = '0200' OR
+    LGART_P = '0201' OR LGART_P = '0202' OR LGART_P = '0203' OR LGART_P = '0221' OR LGART_P = '0222' OR LGART_P = '0225'
+    OR LGART_P = '0226' OR LGART_P = '9921').  " WT0225 & WT0226 added on 15-Jun-2016 and WT9921 added on 6-July-2018 by Mkhan13
+
+    IT_EARN-LGART_P = WA_tab1-LGART_P.
+    IT_EARN-LGTXT_P = WA_tab1-LGTXT_P.
+    IT_EARN-BETRG_P = WA_tab1-BETRG_P.
+    IT_EARN-ARREAR_P = WA_tab1-ARREAR_P.
+    APPEND IT_EARN.
+  endloop.
+
+  loop at tab1 into wa_tab1 where ( LGART_P ne '0001' and LGART_P ne '0005' and LGART_P ne '0009' and LGART_P ne '0200' and
+    LGART_P ne '0201' and LGART_P ne '0202' and LGART_P ne '0203' and LGART_P ne '0221' and LGART_P ne '0222'
+    and LGART_P ne '0225' and LGART_P ne '0226' and LGART_P ne '9921' ). " WT0225 & WT0226 added on 15-Jun-2016 and WT9921 added on 6-July-2018 by Mkhan13
+
+    IT_EARN1-LGART_P = WA_tab1-LGART_P.
+    IT_EARN1-LGTXT_P = WA_tab1-LGTXT_P.
+    IT_EARN1-BETRG_P = WA_tab1-BETRG_P.
+    IT_EARN1-ARREAR_P = WA_tab1-ARREAR_P.
+    APPEND IT_EARN1.
+  endloop.
+
+  loop at tab1 into wa_tab1.
+    IT_ded-LGART_P = WA_tab1-LGART_d.
+    IT_ded-LGTXT_P = WA_tab1-LGTXT_d.
+    IT_ded-BETRG_P = WA_tab1-BETRG_d.
+    IT_ded-ARREAR_P = WA_tab1-ARREAR_d.
+    APPEND IT_ded.
+  endloop.
+
+  SORT IT_DED BY LGART_P.
+  delete adjacent duplicates from it_ded comparing lgart_p.
+
+break abapdev.
+*delete tab1 where betrg_p is INITIAL and arrear_p is INITIAL and betrg_d is INITIAL and arrear_d is INITIAL.
+
+ENDFORM.                    " FORMAT_PAYROLL_RESULTS
+*&---------------------------------------------------------------------*
+*&      Form  CALL_FORM
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM call_form .
+  DATA:
+          control TYPE ssfctrlop,
+          output_options TYPE ssfcompop,
+          input TYPE ssfcompin,
+          fm_name TYPE rs38l_fnam,
+          my_tabix TYPE sy-tabix,
+          fm_name1 TYPE rs38l_fnam,
+          result TYPE ssfcresop,
+          w_return TYPE ssfcrescl.
+
+  DATA: v_spoolid TYPE ssfcrescl.
+  DATA: v_spoolno TYPE rspoid.
+
+  control-preview = ''.
+  control-no_open = 'X'.
+  control-no_close = 'X'.
+  IF tdest IS NOT INITIAL.
+    control-no_dialog = 'X'.
+  ELSE.
+    control-no_dialog = ''.
+  ENDIF.
+  control-device = 'PRINTER'.
+*  control-no_dialog = 'X'.
+  control-no_open = 'X'.
+  control-no_close = 'X'.
+  output_options-tddest = tdest.
+  output_options-tdnoprint = ''.
+  output_options-tdimmed = 'X'.
+  output_options-tdnewid = 'X'.
+*  OUTPUT_OPTIONS-tddataset = 'XYZ'.
+
+  CALL FUNCTION 'SSF_OPEN'
+    EXPORTING
+      output_options     = output_options
+      control_parameters = control
+      user_settings      = ' '
+    EXCEPTIONS
+      formatting_error   = 1
+      internal_error     = 2
+      send_error         = 3
+      user_canceled      = 4
+      OTHERS             = 5.
+
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+    WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+  CALL FUNCTION 'SSF_FUNCTION_MODULE_NAME'
+  EXPORTING
+    formname                 =  'ZHR_ZMN_PAYSLIP_SCR_FPCL'
+*   VARIANT                  = ' '
+*   DIRECT_CALL              = ' '
+  IMPORTING
+    fm_name                  = lf_fm_name
+  EXCEPTIONS
+    no_form                  = 1
+    no_function_module       = 2
+    OTHERS                   = 3.
+
+  CALL FUNCTION lf_fm_name
+   EXPORTING
+*   ARCHIVE_INDEX              =
+*   ARCHIVE_INDEX_TAB          =
+*   ARCHIVE_PARAMETERS         =
+     control_parameters         = control
+*   MAIL_APPL_OBJ              =
+*   MAIL_RECIPIENT             =
+*   MAIL_SENDER                =
+     output_options             = output_options
+     user_settings              = ' '
+     zpper                      = zpper
+     ztext                      = ztext
+     tded                       = tded
+     tnet                       = tnet
+     head                       = head
+     h_ind                      = h_ind
+     v_net                     = v_net
+     zdesig                     = zdesig
+*{   INSERT         PRDK900081                                        1
+     ot_hrs_act                = ot_hrs_act
+*}   INSERT
+*     recalc                     = recalc
+    IMPORTING
+*   DOCUMENT_OUTPUT_INFO       =
+      job_output_info            = w_return
+     job_output_options         =  result
+
+  TABLES
+*  header_tab                   = header_tab
+     tab                         = tab1
+     it_earn                     = it_earn
+     it_earn1                    = it_earn1
+     it_ded                      = it_ded
+*   footer                      = footer
+   EXCEPTIONS
+     formatting_error           = 1
+     internal_error             = 2
+     send_error                 = 3
+     user_canceled              = 4
+     OTHERS                     = 5
+            .
+  IF sy-subrc EQ 0.
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+    CLEAR:tab[],tab.
+  ENDIF.
+
+  CALL FUNCTION 'SSF_CLOSE'
+    EXCEPTIONS
+      formatting_error = 1
+      internal_error   = 2
+      send_error       = 3
+      OTHERS           = 4.
+
+
+  IF sy-subrc NE 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+    WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.                    " CALL_FORM
+*&---------------------------------------------------------------------*
+*&      Form  CONVERT_PDF_MAIL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM convert_pdf_mail .
+
+
+  CONSTANTS c_formname          TYPE tdsfname VALUE 'ZHR_ZMN_PAYSLIP_SCR_FPCL'.
+  DATA email TYPE pa0105-usrid_long.
+  DATA: gv_form_name TYPE rs38l_fnam, " Used to store the function module generated by Smartform
+gv_bin_filesize TYPE i, " Store the file size
+gv_pos TYPE i,
+gv_len TYPE i,
+gv_tab_lines TYPE i.
+*******Constants ******************************************
+  DATA : gc_text(11) TYPE c VALUE 'Form Output',
+        gc_tst(3) TYPE c VALUE 'TST',
+        text TYPE string,txt1 TYPE string.
+********Work Area Declarations ****************************
+  DATA: gs_docdata TYPE sodocchgi1, " Data of an object which can be changed
+  gs_ctrlop TYPE ssfctrlop, " Smart Forms: Control structure
+  gs_outopt TYPE ssfcompop, " SAP Smart Forms: Smart Composer (transfer) options
+  gs_otfdata TYPE ssfcrescl, " Smart Forms: Return value at end of form printing
+  gs_reclist TYPE somlreci1, " SAPoffice: Structure of the API Recipient List
+  gs_pdf_tab TYPE tline, " Workarea for SAP Script Text Lines
+  gs_objbin TYPE solisti1, " SAPoffice: Single List with Column Length 255
+  gs_objpack TYPE sopcklsti1. " SAPoffice: Description of Imported Object Components
+********Internal tables Declarations ****************************
+  DATA: gt_reclist TYPE TABLE OF somlreci1, " SAPoffice: Structure of the API Recipient List
+  gt_pdf_tab TYPE TABLE OF tline, " SAPscript: Text Lines
+  gt_otf TYPE TABLE OF itcoo, " OTF Structure
+  gt_objbin TYPE TABLE OF solisti1, " SAPoffice: Single List with Column Length 255
+  gt_objpack TYPE TABLE OF sopcklsti1. " SAPoffice: Description of Imported Object Components
+  DATA: objhead LIKE solisti1   OCCURS  1 WITH HEADER LINE.
+
+  CLEAR : gv_form_name,
+  gs_ctrlop,
+  gs_outopt,
+  gs_otfdata,
+  gv_bin_filesize,
+  gv_pos,
+  gv_len,
+  gv_tab_lines.
+* Generate Function Module name
+  CALL FUNCTION 'SSF_FUNCTION_MODULE_NAME'
+    EXPORTING
+      formname           = c_formname
+    IMPORTING
+      fm_name            = gv_form_name
+    EXCEPTIONS
+      no_form            = 1
+      no_function_module = 2
+      OTHERS             = 3.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+    WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+* Assigning values to Form Control Structure and Form Composer
+  gs_ctrlop-getotf = 'X'.
+  gs_ctrlop-device = 'PRINTER'.
+  gs_ctrlop-preview = ''.
+  gs_ctrlop-no_dialog = 'X'.
+  gs_outopt-tddest = 'LP01'.
+* Getting the OTFDATA
+  CALL FUNCTION gv_form_name
+    EXPORTING
+      control_parameters = gs_ctrlop
+      output_options     = gs_outopt
+      user_settings      = ' '
+      zpper              = zpper
+      ztext              = ztext
+      tded               = tded
+      tnet               = tnet
+      head               = head
+      recalc             = recalc
+      h_ind              = h_ind
+      v_net              = v_net
+      zdesig              = zdesig
+*{   INSERT         PRDK900081                                        1
+      ot_hrs_act         = ot_hrs_act
+*}   INSERT
+    IMPORTING
+      job_output_info    = gs_otfdata
+    TABLES
+      tab                = tab1
+      it_earn            = it_earn
+      it_earn1           = it_earn1
+      it_ded             = it_ded
+    EXCEPTIONS
+      formatting_error   = 1
+      internal_error     = 2
+      send_error         = 3
+      user_canceled      = 4.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+    WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+* Assigning the OTFDATA to OTF Structure table
+  CLEAR gt_otf.
+  gt_otf[] = gs_otfdata-otfdata[].
+* Convert the OTF DATA to SAP Script Text lines
+  CLEAR gt_pdf_tab.
+  CALL FUNCTION 'CONVERT_OTF'
+    EXPORTING
+      format                = 'PDF'
+      max_linewidth         = 132
+    IMPORTING
+      bin_filesize          = gv_bin_filesize
+    TABLES
+      otf                   = gt_otf
+      lines                 = gt_pdf_tab
+    EXCEPTIONS
+      err_max_linewidth     = 1
+      err_format            = 2
+      err_conv_not_possible = 3
+      OTHERS                = 4.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+    WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+* Assigning the Description of the object sent in the mail
+  CLEAR gs_docdata.
+  gs_docdata-obj_name = gc_tst.
+  SELECT SINGLE ltx FROM t247 INTO txt1 WHERE mnr = zpper+4(2)
+   AND spras = 'E'.
+  IF sy-subrc = 0.
+    CONDENSE txt1.
+    CONCATENATE txt1 ',' zpper+0(4) INTO txt1 SEPARATED BY space.
+  ENDIF.
+  CONCATENATE 'Payslip For The Month Of' txt1 INTO text SEPARATED BY space.
+  gs_docdata-obj_descr = text.
+* Assigning the email id to Structure of the API Recipient List table
+  CLEAR : gt_reclist, gs_reclist.
+*  IF internal mail id
+*  gs_reclist-receiver = sy-uname.
+*  GS_RECLIST-REC_TYPE = 'B'.
+*  gs_reclist-express = 'X'.
+
+*  if external mail id
+*  gs_reclist-receiver = 'haque_mehwish@hotmail.com'.
+  SELECT SINGLE usrid_long FROM pa0105 INTO email WHERE pernr = pernr-pernr AND subty = '0010'.
+
+  TRANSLATE email TO LOWER CASE.
+  IF email IS NOT INITIAL.
+    gs_reclist-receiver = email.
+    gs_reclist-rec_type = 'U'.
+    APPEND gs_reclist TO gt_reclist.
+
+* Passing the SAP Script text lines to SAPoffice: Single List with Column Length 255 table
+    CLEAR : gs_objbin, gs_pdf_tab.
+    LOOP AT gt_pdf_tab INTO gs_pdf_tab.
+      gv_pos = 255 - gv_len.
+      IF gv_pos > 134. "length of pdf_table
+        gv_pos = 134.
+      ENDIF.
+      gs_objbin+gv_len = gs_pdf_tab(gv_pos).
+      gv_len = gv_len + gv_pos.
+      IF gv_len = 255. "length of out (contents_bin)
+        APPEND gs_objbin TO gt_objbin.
+        CLEAR: gs_objbin, gv_len.
+        IF gv_pos < 134.
+          gs_objbin = gs_pdf_tab+gv_pos.
+          gv_len = 134 - gv_pos.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+    IF gv_len > 0.
+      APPEND gs_objbin TO gt_objbin.
+    ENDIF.
+* Filling the details in SAPoffice: Description of Imported Object Components table
+    DESCRIBE TABLE gt_objbin LINES gv_tab_lines.
+    CLEAR gs_objbin.
+    READ TABLE gt_objbin INTO gs_objbin INDEX gv_tab_lines.
+    IF sy-subrc = 0.
+* **************************
+*    data:v_lines_txt TYPE i,i_objtxt LIKE solisti1 OCCURS 0 WITH HEADER LINE.
+*      data:msg TYPE string.
+*      CONCATENATE 'Find the attached payslip, please review it thoroughly, should you have any query regarding leave status and payslip. '
+*            'Please consult HR department.' into msg SEPARATED BY space.
+*  i_objtxt = msg.
+*  APPEND i_objtxt.
+*  i_objtxt = ' '.
+*  APPEND i_objtxt.
+*      DESCRIBE TABLE i_objtxt LINES v_lines_txt.
+*
+*    gs_objpack-head_start = 1.
+*
+**NUMBER OF LINES OF an object HEADER IN object packet
+*  gs_objpack-head_num = 0.
+*
+**Start LINE OF object contents IN an object packet
+*  gs_objpack-body_start = 1.
+*
+**NUMBER OF LINES OF the object contents IN an object packet
+*  gs_objpack-body_num = v_lines_txt.
+*
+**CODE FOR document CLASS
+*  gs_objpack-doc_type = 'BIN'.
+*  APPEND gs_objpack to gt_objpack.
+*********************
+
+      gs_objpack-doc_size = ( gv_tab_lines - 1 ) * 255 + STRLEN( gs_objbin ).
+      gs_objpack-transf_bin = 'X'.
+      gs_objpack-head_start = 1.
+      gs_objpack-head_num = 0.
+      gs_objpack-body_start = 1.
+      gs_objpack-body_num = gv_tab_lines.
+      gs_objpack-doc_type = 'PDF'.
+      gs_objpack-obj_name = 'ATTACHMENT'.
+      gs_objpack-obj_descr = 'PaySlip'.
+      APPEND gs_objpack TO gt_objpack.
+    ENDIF.
+    objhead = 'PaySlip.pdf'. APPEND objhead.
+
+* Sending the Form Output in the PDF format to email
+    CALL FUNCTION 'SO_NEW_DOCUMENT_ATT_SEND_API1'
+      EXPORTING
+        document_data              = gs_docdata
+        put_in_outbox              = 'X'
+        commit_work                = 'X'
+      TABLES
+        packing_list               = gt_objpack
+        contents_bin               = gt_objbin
+        receivers                  = gt_reclist
+*      contents_txt              = i_objtxt
+        object_header = objhead
+      EXCEPTIONS
+        too_many_receivers         = 1
+        document_not_sent          = 2
+        document_type_not_exist    = 3
+        operation_no_authorization = 4
+        parameter_error            = 5
+        x_error                    = 6
+        enqueue_error              = 7
+        OTHERS                     = 8.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+    SUBMIT rsconn01
+    WITH mode EQ 'INT'
+    AND RETURN.
+  ENDIF.
+ENDFORM.                    "convert_pdf_mail
+
+" convert_pdf_mail
+*&---------------------------------------------------------------------*
+*&      Form  GET_WAGETYPE_TEXT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_LGART  text
+*----------------------------------------------------------------------*
+FORM get_wagetype_text  USING    p_lgart
+                        CHANGING p_lgtxt.
+  SELECT SINGLE lgtxt FROM t512t
+     INTO p_lgtxt WHERE molga = '99'
+    AND lgart = p_lgart AND sprsl = 'EN'.
+  IF sy-subrc NE 0.
+    SELECT SINGLE lgtxt FROM t512s
+      INTO p_lgtxt WHERE molga = '99'
+     AND lgart = p_lgart AND sprsl = 'EN'.
+  ENDIF.
+ENDFORM.                    " GET_WAGETYPE_TEXT

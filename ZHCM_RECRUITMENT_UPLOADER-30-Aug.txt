@@ -1,0 +1,48 @@
+*&---------------------------------------------------------------------*
+*& Report ZHCM_RECRUITMENT_UPLOADER
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZHCM_RECRUITMENT_UPLOADER.
+
+*&---------------------------------------------------------------------*
+*& Program Name       : ZHCM_RECRUITMENT_UPLOADER
+*& SAP Name           : ZHCM_RECRUITMENT_UPLOADER
+*& Date               : 13 Aug 2020
+*& Version            : 1.0
+*& Programmer         : Faryal Zaidi
+*& Last Update        :
+*&---------------------------------------------------------------------*
+*& Description : The Purpose Of this Programme is to Upload the Applicant Long list
+
+*&
+*&
+*&---------------------------------------------------------------------*
+*& Includes           : ZHCM_RECRUIT_UPLOADER_top.
+*&                      ZHCM_RECRUIT_UPLOADER_s01.
+*&                      ZHCM_RECRUIT_UPLOADER_f01.
+*&---------------------------------------------------------------------*
+*& Logical Databases  : None
+*&---------------------------------------------------------------------*
+*& Modification History :
+*&
+*&   Author     Date       Correction #   Purpose
+*&  --------  ---------    ------------   ------------------------------
+*&  ABAP     13 Aug 2020                  Initial Development
+*            12 Jan 2021                  multiple education and previous job record of an aplicant
+*&  --------  ---------    ------------   ------------------------------
+
+
+INCLUDE ZHCM_RECRUIT_UPLOADER_top.
+INCLUDE ZHCM_RECRUIT_UPLOADER_s01.
+INCLUDE ZHCM_RECRUIT_UPLOADER_f01.
+
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file.
+
+PERFORM get_file.
+
+START-OF-SELECTION.
+PERFORM upload_data.
+PERFORM create_data.
+PERFORM display_data.

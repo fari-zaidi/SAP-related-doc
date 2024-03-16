@@ -1,0 +1,1906 @@
+*&---------------------------------------------------------------------*
+*& Report  ZSALES_FC
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+REPORT ZSALES_FC.
+
+*&---------------------------------------------------------------------*
+*& Report  ZSALES_TRANSIT
+*&
+*&---------------------------------------------------------------------*
+*&q2
+
+*&
+*&---------------------------------------------------------------------*
+
+*REPORT  ZSALES_FC.
+INCLUDE ZALV_INCL.
+
+"TABLES: likp, lips, vbap, vbak, knvv, vbrp.
+
+
+TABLES: PBIM,LIKP,AFKO,AUFK,ZSALES_FC, VBAK.
+
+
+*SELECTION-SCREEN BEGIN OF BLOCK B3 WITH FRAME TITLE TEXT-001.
+*PARAMETERS :     WREG RADIOBUTTON GROUP MOD1 MODIF ID SC0 DEFAULT 'X' USER-COMMAND MTLY,
+*                 REG  RADIOBUTTON GROUP MOD1 MODIF ID SC0.
+*SELECTION-SCREEN  END OF BLOCK B3." with frame title text-001.
+
+SELECTION-SCREEN BEGIN OF BLOCK B2 WITH FRAME TITLE TEXT-001.
+
+SELECT-OPTIONS:
+*      Plant FOR pbim-werks obligatory,
+*      Material FOR pbim-matnr.
+
+      MATERIAL FOR PBIM-MATNR ,
+         LGORT FOR ZSALES_FC-LGORT ,
+        PLANT FOR PBIM-WERKS ,
+        REGION FOR ZSALES_FC-REGION ,
+        AUART FOR VBAK-AUART ."obligatory.
+PARAMETERS:
+* Version like RM60X-versb obligatory,
+  VERSION LIKE RM60X-VERSB,
+  FROM_DT LIKE SY-DATUM , " obligatory,
+  TO_DATE LIKE SY-DATUM . " OBLIGATORY.
+
+
+
+*PARAMETERS :     DETAIL RADIOBUTTON GROUP MODE MODIF ID SC0 DEFAULT 'X'.
+**                 SUM    RADIOBUTTON GROUP MODE MODIF ID SC0.
+
+*PARAMETERS: EMAIL AS CHECKBOX DEFAULT ''.
+
+SELECTION-SCREEN END   OF BLOCK B2.
+
+
+SELECTION-SCREEN BEGIN OF BLOCK B3 WITH FRAME TITLE TEXT-002.
+
+PARAMETERS: P_RAD1 RADIOBUTTON GROUP RAD1,
+            P_RAD2 RADIOBUTTON GROUP RAD1.
+
+SELECTION-SCREEN END   OF BLOCK B3.
+
+SELECTION-SCREEN BEGIN OF BLOCK B4 WITH FRAME TITLE TEXT-002.
+
+PARAMETERS: P_CHK1 AS CHECKBOX DEFAULT 'X'.
+
+SELECTION-SCREEN END   OF BLOCK B4.
+
+
+*selection-screen end   of block b1.
+DATA: SUM TYPE PLNMG.
+DATA:
+  BEGIN OF I_VBFA OCCURS 1,
+
+    VBELN LIKE VBFA-VBELN,
+    POSNN LIKE VBFA-POSNN,
+  END OF I_VBFA,
+* Orders
+  BEGIN OF GT_MAIN OCCURS 0,
+
+*        order_ref(20) TYPE c,
+    LOCCO     LIKE KNA1-LOCCO,
+    MATNR     LIKE LIPS-MATNR,
+    WERKS     LIKE LIPS-WERKS,
+    "combination of sales order and item no
+    VBELN     LIKE LIPS-VBELN,          "delivery
+*        vbelninv like  vbrp-vbeln,      " Invoice NO
+    POSNR     LIKE LIPS-POSNR,          "delivery item
+    WADAT_IST LIKE LIKP-WADAT_IST,  "post good issue date
+*        kunnr LIKE likp-kunnr,          " ship to party customer code
+*        kunag LIKE likp-kunag,          " sold to party customer code
+    VGBEL     LIKE LIPS-VGBEL,          "order no
+    VGPOS     LIKE LIPS-VGPOS,          "order item
+*        matnr LIKE lips-matnr,          "material
+    LFIMG     LIKE LIPS-LFIMG,
+    REGIO     LIKE KNVV-BZIRK,
+*     bzirk LIKE knvv-bzirk,
+    LGORT     LIKE LIPS-LGORT,    " Storage Location
+    "plant
+    CHARG     LIKE LIPS-CHARG,
+    KNA1      LIKE KNA1-LOCCO,
+*        wadat LIKE pbed-perxx,    "Batch number
+*        netwr LIKE vbap-netwr,          "net amount
+*        NTGEW like vbap-NTGEW,          "weight
+*        mwsbp LIKE vbap-mwsbp,          "tax amount
+*        arktx LIKE vbap-arktx,          "material desc
+*        auart LIKE vbak-auart,          "order type
+*        vkbur LIKE vbak-vkbur,          "sales office
+*        vkgrp LIKE vbak-vkgrp,          "sales group
+*        matkl LIKE vbap-matkl,          "material group
+*        kvgr1 LIKE vbak-kvgr1,          "customer group
+*        kwmeng LIKE vbap-kwmeng,        "order quantity
+    VKORG     LIKE VBAK-VKORG,          "sales
+    VTWEG     LIKE VBAK-VTWEG,          "distribution channel
+*        spart LIKE vbak-spart,          "division
+*        augru like vbak-augru,           "Reason
+*        bzirk LIKE knvv-bzirk,          "sales district
+*        konda LIKE knvv-konda,          "price group
+*        name1 LIKE kna1-name1,          "name
+*        name2 LIKE kna1-name1,          "name 2
+*        regio LIKE kna1-regio,          "region
+*        knumv LIKE vbak-knumv,          "conditon
+    UECHA     LIKE LIPS-UECHA,
+*        BZIRKK like KNVV-BZIRK,
+*        VKBURR like KNVV-VKBUR,
+*        VKGRPP like KNVV-VKGRP,
+*        KDGRPP like KNVV-KDGRP,
+*        brsch like kna1-brsch,
+*        brtxt like T016T-BRTXT,
+*        ORT01 like kna1-ORT01,
+*        pbim-matnr ,
+*        pbim-werks ,
+    REG       TYPE C,
+
+  END OF GT_MAIN,
+
+  BEGIN OF GT_FORECAST OCCURS 1,
+    MATNR  LIKE PBIM-MATNR, "material
+    WERKS  LIKE PBIM-WERKS, "plant
+    PLNMG  LIKE PBED-PLNMG, "planned quantity
+    PERXX  LIKE PBED-PERXX,
+    LABST  LIKE MARD-LABST,
+    REGION LIKE ZSALES_FC-REGION,
+    LGORT  LIKE ZSALES_FC-LGORT,
+    MENGE  LIKE EKET-MENGE,
+  END OF GT_FORECAST,
+
+  BEGIN OF GT_FORECAST2 OCCURS 1,
+    MATNR LIKE PBIM-MATNR, "material
+    WERKS LIKE PBIM-WERKS, "plant
+*      plnmg LIKE pbed-plnmg, "planned quantity
+*      perxx LIKE pbed-perxx,
+    LABST LIKE MARD-LABST,
+*      region LIKE zsales_fc-region,
+*  menge like eket-menge,
+  END OF GT_FORECAST2,
+  BEGIN OF GT_FORECAST3 OCCURS 1,
+    MATNR LIKE PBIM-MATNR, "material
+    WERKS LIKE PBIM-WERKS, "plant
+*      plnmg LIKE pbed-plnmg, "planned quantity
+*      perxx LIKE pbed-perxx,
+    LABST LIKE MARD-LABST,
+*      region LIKE zsales_fc-region,
+*  menge like eket-menge,
+  END OF GT_FORECAST3,
+  BEGIN OF ST OCCURS 1,
+    EBELN      LIKE EKPO-EBELN,
+    EBELP      LIKE EKPO-EBELP,
+    MATNR      LIKE MSEG-MATNR,
+
+    RESWK      LIKE  EKKO-RESWK,
+
+    MENGE      LIKE EKET-MENGE,
+    MENGE_PSTO LIKE EKET-MENGE,
+    MENGE_OSTO LIKE EKET-MENGE,                                                             "Planned STO
+    WERKS      LIKE EKPO-WERKS,
+    LGORT      LIKE EKPO-LGORT,
+  END OF ST,
+
+  BEGIN OF GT_FINAL OCCURS 1,
+    LOCCO       LIKE KNA1-LOCCO,
+    MATNR       LIKE PBIM-MATNR, "material
+    REGIO       LIKE KNVV-BZIRK,
+    WERKS       LIKE PBIM-WERKS, "plant
+    PLNMG       LIKE PBED-PLNMG, "planned quantity
+    LABST       LIKE MARD-LABST,
+    MENGE       LIKE EKET-MENGE,
+    MENGE_PSTO  LIKE EKET-MENGE,
+    MENGE_OSTO LIKE EKET-MENGE,
+    LFIMG       LIKE LIPS-LFIMG,
+    MAKTX       LIKE MAKT-MAKTX,
+    NAME1       LIKE T001W-NAME1,
+    BEZEI       LIKE T171T-BZTXT,
+    CST         LIKE MARD-LABST,
+    STATUS      TYPE STRING,
+    CON         TYPE STRING,
+    CONN        TYPE STRING,
+    COUNT       TYPE I,
+    SAL         LIKE PBED-PLNMG,
+    MTART       LIKE MARA-MTART,
+    MATKL       LIKE MARA-MATKL,
+    MTBEZ       LIKE T134T-MTBEZ,
+    WGBEZ       LIKE T023T-WGBEZ,
+    LGORT       LIKE LIPS-LGORT,
+    LGOBE       LIKE T001L-LGOBE,
+    INVENT      LIKE PBED-PLNMG,
+    NET         LIKE MARD-LABST,
+    REQ_FC      LIKE PBED-PLNMG,
+    STOCK_1060  LIKE MARD-LABST,
+    STOCK_2051  LIKE MARD-LABST,
+    STOCK_3052  LIKE MARD-LABST,
+    STOCK_2004  LIKE MARD-LABST,
+    STOCK_2050  LIKE MARD-LABST,
+    STOCK_2055  LIKE MARD-LABST,
+    STOCK_106A  LIKE MARD-LABST,
+    STOCK_205A  LIKE MARD-LABST,
+    PER         LIKE PBED-PLNMG,
+    PERA        LIKE PBED-PLNMG,
+    KBETR       LIKE KONP-KBETR,
+    PLANT_1000  LIKE MARD-INSME,
+    PLANT_2000  LIKE MARD-INSME,
+    PLANT_2500  LIKE MARD-INSME,
+    PLANT_3000  LIKE MARD-INSME,
+    PLANT_5000  LIKE MARD-INSME,
+    PLANT_5500  LIKE MARD-INSME,
+    PLANT_6000  LIKE MARD-INSME,
+    PLANT_7000  LIKE MARD-INSME,
+    PLANT_8000  LIKE MARD-INSME,
+    PLANT_9000  LIKE MARD-INSME,
+    STK_WT      LIKE MARD-LABST,
+    STK_WTP     LIKE MARD-LABST,
+    STK_WOT     LIKE MARD-LABST,
+    STK_WOTP    LIKE MARD-LABST,
+    OMENG       LIKE VBBE-OMENG,
+    OMENG1      LIKE VBBE-OMENG,
+    OMENG2      LIKE VBBE-OMENG,
+    NETSTOCK    LIKE MARD-LABST,
+    STK_COV_WT  LIKE MARD-LABST,
+    STK_COV_WTP LIKE MARD-LABST,
+
+  END OF GT_FINAL,
+
+  BEGIN OF GT_MAINN OCCURS 1,
+    VBELN     LIKE LIPS-VBELN,
+    LFIMG     LIKE LIPS-LFIMG,
+    POSNR     LIKE VBAP-POSNR,
+    CHARG     LIKE LIPS-CHARG,
+    WERKS     LIKE LIPS-WERKS,
+    VKORG     LIKE VBAK-VKORG,          "sales
+    VTWEG     LIKE VBAK-VTWEG,          "distribution channel
+    VGBEL     LIKE LIPS-VGBEL,
+    KUNNR     LIKE LIKP-KUNAG,
+    UECHA     LIKE LIPS-UECHA,
+    WADAT_IST LIKE LIKP-WADAT_IST,
+    KUNAG     LIKE LIKP-KUNAG,
+    MATNR     LIKE LIPS-MATNR,
+    DEL       LIKE VBFA-VBELN,
+    POS       LIKE VBFA-POSNN,
+  END OF GT_MAINN.
+DATA: WA_FINAL LIKE TABLE OF GT_FINAL.
+DATA: GT_MAINNN LIKE TABLE OF GT_MAINN WITH HEADER LINE.
+DATA: GT_MAINNNN LIKE TABLE OF GT_MAIN WITH HEADER LINE.
+DATA: GT_FINAL2 LIKE TABLE OF GT_FINAL WITH HEADER LINE.
+DATA: PER LIKE PBED-PLNMG.
+DATA: ST1 LIKE TABLE OF ST WITH HEADER LINE.
+DATA: UMREZ TYPE UMREZ.
+*  BOC by TMC-Faheem on 25.01.2016
+TYPES: BEGIN OF TY_ST,
+         MATNR      LIKE MSEG-MATNR,
+         WERKS      LIKE EKPO-WERKS,
+         LGORT      LIKE EKPO-LGORT,
+         MENGE      LIKE EKET-MENGE,
+         MENGE_PSTO LIKE EKET-MENGE,
+         MENGE_OSTO LIKE EKET-MENGE,
+       END OF TY_ST.
+DATA: LT_ST TYPE TABLE OF TY_ST,
+      WA_ST TYPE TY_ST.
+FIELD-SYMBOLS: <FS_ST> TYPE TY_ST.
+
+
+TYPES:  BEGIN OF TY_STOCKC,
+          MATNR LIKE MARA-MATNR,
+          LGORT LIKE MARD-LGORT,
+          WERKS LIKE MARD-WERKS,
+          LABST LIKE MARD-LABST,
+        END OF TY_STOCKC.
+DATA: LT_STOCKC TYPE TABLE OF TY_STOCKC,
+      WA_STOCKC TYPE TY_STOCKC.
+FIELD-SYMBOLS: <FS_STOCKC> TYPE TY_STOCKC.
+
+TYPES: BEGIN OF TY_FORECAST,
+         MATNR  LIKE PBIM-MATNR, "material
+         WERKS  LIKE PBIM-WERKS, "plant
+         PLNMG  LIKE PBED-PLNMG, "planned quantity
+         PERXX  LIKE PBED-PERXX,
+         LABST  LIKE MARD-LABST,
+         REGION LIKE ZSALES_FC-REGION,
+         LGORT  LIKE ZSALES_FC-LGORT,
+         MENGE  LIKE EKET-MENGE,
+       END OF TY_FORECAST.
+FIELD-SYMBOLS: <FS_FORECAST> TYPE TY_FORECAST.
+
+RANGES: R_VERSION FOR RM60X-VERSB.
+
+TYPES: BEGIN OF TY_MAIN,
+         MATNR LIKE LIPS-MATNR,
+         WERKS LIKE LIPS-WERKS,          "order item
+         LFIMG LIKE LIPS-LFIMG,
+       END OF TY_MAIN
+       .
+DATA: LT_MAIN TYPE TABLE OF TY_MAIN,
+      WA_MAIN TYPE TY_MAIN.
+FIELD-SYMBOLS: <FS_MAIN> TYPE TY_MAIN.
+
+TYPES: BEGIN OF TY_ST1,
+         EBELN      LIKE EKPO-EBELN,
+         EBELP      LIKE EKPO-EBELP,
+         MATNR      LIKE MSEG-MATNR,
+         RESWK      LIKE  EKKO-RESWK,
+         MENGE      LIKE EKET-MENGE,
+         MENGE_PSTO LIKE EKET-MENGE,
+         MENGE_OSTO LIKE EKET-MENGE,
+         WERKS      LIKE EKPO-WERKS,
+         LGORT      LIKE EKPO-LGORT,
+       END OF TY_ST1.
+
+FIELD-SYMBOLS: <FS_ST1> TYPE TY_ST1.
+
+TYPES: BEGIN OF TY_FORECAST3,
+         MATNR LIKE PBIM-MATNR, "material
+         WERKS LIKE PBIM-WERKS,
+         LABST LIKE MARD-LABST,
+       END OF TY_FORECAST3.
+DATA: WA_FORECAST3 TYPE TY_FORECAST3.
+
+FIELD-SYMBOLS: <FS_FORECAST3> TYPE TY_FORECAST3.
+
+
+TYPES: BEGIN OF TY_MARA,
+         MATNR TYPE MATNR,
+         MTART TYPE MTART,
+         MATKL TYPE MATKL,
+       END OF TY_MARA.
+DATA: LT_MARA TYPE TABLE OF TY_MARA,
+      WA_MARA TYPE TY_MARA.
+FIELD-SYMBOLS: <FS_MARA> TYPE TY_MARA.
+
+
+TYPES: BEGIN OF TY_T134T,
+         MTART TYPE MTART,
+         MTBEZ TYPE MTBEZ,
+       END OF TY_T134T.
+DATA: LT_T134T TYPE TABLE OF TY_T134T,
+      WA_T134T TYPE TY_T134T.
+FIELD-SYMBOLS: <FS_T134T> TYPE TY_T134T.
+
+TYPES: BEGIN OF TY_T023T,
+         MATKL TYPE MATKL,
+         WGBEZ TYPE WGBEZ,
+       END OF TY_T023T.
+DATA: LT_T023T TYPE TABLE OF TY_T023T,
+      WA_T023T TYPE TY_T023T.
+FIELD-SYMBOLS: <FS_T023T> TYPE TY_T023T.
+
+
+TYPES: BEGIN OF TY_T001W,
+         WERKS TYPE WERKS_D,
+         NAME1 TYPE NAME1,
+       END OF TY_T001W.
+DATA: LT_T001W TYPE TABLE OF TY_T001W,
+      WA_T001W TYPE TY_T001W.
+FIELD-SYMBOLS: <FS_T001W> TYPE TY_T001W.
+
+TYPES: BEGIN OF TY_T171T,
+         BZIRK TYPE BZIRK,
+         BZTXT TYPE BZTXT,
+       END OF TY_T171T.
+DATA: LT_T171T TYPE TABLE OF TY_T171T,
+      WA_T171T TYPE TY_T171T.
+FIELD-SYMBOLS: <FS_T171T> TYPE TY_T171T.
+
+
+
+TYPES: BEGIN OF TY_MARM,
+         MATNR TYPE MATNR,
+         UMREZ TYPE UMREZ,
+       END OF TY_MARM.
+DATA: LT_MARM TYPE TABLE OF TY_MARM,
+      WA_MARM TYPE TY_MARM.
+FIELD-SYMBOLS: <FS_MARM> TYPE TY_MARM.
+
+
+TYPES: BEGIN OF TY_MAKT,
+         MATNR TYPE MATNR,
+         MAKTX TYPE MAKTX,
+       END OF TY_MAKT.
+DATA: LT_MAKT TYPE TABLE OF TY_MAKT,
+      WA_MAKT TYPE TY_MAKT.
+FIELD-SYMBOLS: <FS_MAKT> TYPE TY_MAKT.
+
+
+TYPES: BEGIN OF TY_ITAB,
+         MATNR     LIKE MARA-MATNR,
+         NEW_MATNR LIKE MARA-MATNR,
+       END OF TY_ITAB.
+DATA: LT_ITAB TYPE TABLE OF TY_ITAB.
+FIELD-SYMBOLS: <FS_ITAB> TYPE TY_ITAB.
+
+TYPES: BEGIN OF TY_T001L,
+         LGORT TYPE LGORT_D,
+         WERKS TYPE WERKS_D,
+         LGOBE TYPE LGOBE,
+       END OF TY_T001L.
+DATA: LT_T001L TYPE TABLE OF TY_T001L.
+FIELD-SYMBOLS: <FS_T001L> TYPE TY_T001L.
+
+TYPES: BEGIN OF TY_FORE,
+         MATNR      LIKE MARA-MATNR,
+         WERKS      LIKE MARC-WERKS,
+         LGORT      LIKE MARD-LGORT,
+         STOCK_3052 LIKE MARD-LABST,
+         STOCK_1060 LIKE MARD-LABST,
+         STOCK_2051 LIKE MARD-LABST,
+         STOCK_2004 LIKE MARD-LABST,
+         STOCK_2050 LIKE MARD-LABST,
+         STOCK_2055 LIKE MARD-LABST,
+         STOCK_106A LIKE MARD-LABST,
+         STOCK_205A LIKE MARD-LABST,
+
+       END OF TY_FORE.
+DATA: LT_FORE TYPE TABLE OF TY_FORE.
+FIELD-SYMBOLS: <FS_FORE> TYPE TY_FORE.
+
+
+TYPES: BEGIN OF TY_RECNO,
+         MATNR LIKE A305-MATNR,
+         KNUMH LIKE A305-KNUMH,
+         KSCHL LIKE A305-KSCHL,
+         DATAB TYPE SY-DATUM,
+*        knumh like konp-knumh , " Rec No
+*        kschl like konp-kschl ," conditionType
+         KBETR LIKE KONP-KBETR , " Amount
+         KONWA LIKE KONP-KONWA , " Currency
+       END OF TY_RECNO.
+
+DATA: BEGIN OF GETAMOUNT  OCCURS 1,
+        KNUMH LIKE KONP-KNUMH , " Rec No
+        KSCHL LIKE KONP-KSCHL , " conditionType
+        KBETR LIKE KONP-KBETR , " Amount
+        KONWA LIKE KONP-KONWA , " Currency
+*          VstTrade type p DECIMALS 2,
+      END OF GETAMOUNT.
+
+DATA: LT_GETRECNO TYPE TABLE OF TY_RECNO,
+      WA_GETRECNO LIKE LINE OF LT_GETRECNO.
+FIELD-SYMBOLS: <FS_RECNO> TYPE TY_RECNO.
+
+* EOC by TMC-Faheem on 25.01.2016
+
+DATA : BEGIN OF GT_Q1 OCCURS 0,
+         MATNR      LIKE MARA-MATNR,
+         INSME      LIKE MARD-INSME,
+         UMREZ      LIKE MARM-UMREZ,
+         ZINSME     LIKE MARD-INSME,
+         LGORT      LIKE MARD-LGORT,
+         WERKS      LIKE MARD-WERKS,
+         PLANT_1000 LIKE MARD-INSME,
+         PLANT_2000 LIKE MARD-INSME,
+         PLANT_2500 LIKE MARD-INSME,
+         PLANT_3000 LIKE MARD-INSME,
+         PLANT_5000 LIKE MARD-INSME,
+         PLANT_5500 LIKE MARD-INSME,
+         PLANT_6000 LIKE MARD-INSME,
+         PLANT_7000 LIKE MARD-INSME,
+         PLANT_8000 LIKE MARD-INSME,
+         PLANT_9000 LIKE MARD-INSME,
+       END OF GT_Q1,
+
+       BEGIN OF GT_Q2 OCCURS 0,
+         MATNR      LIKE MARA-MATNR,
+         INSME      LIKE MARD-INSME,
+         LGORT      LIKE MARD-LGORT,
+*        WERKS LIKE MARD-WERKS,
+         PLANT_1000 LIKE MARD-INSME,
+         PLANT_2000 LIKE MARD-INSME,
+         PLANT_2500 LIKE MARD-INSME,
+         PLANT_3000 LIKE MARD-INSME,
+         PLANT_5000 LIKE MARD-INSME,
+         PLANT_5500 LIKE MARD-INSME,
+         PLANT_6000 LIKE MARD-INSME,
+         PLANT_7000 LIKE MARD-INSME,
+         PLANT_8000 LIKE MARD-INSME,
+         PLANT_9000 LIKE MARD-INSME,
+
+       END OF GT_Q2.
+
+START-OF-SELECTION.
+*BREAK-POINT.
+  IF FROM_DT = '00000000' AND TO_DATE = '00000000'.
+
+    CALL FUNCTION 'HR_JP_MONTH_BEGIN_END_DATE'
+      EXPORTING
+        IV_DATE             = SY-DATUM
+      IMPORTING
+        EV_MONTH_BEGIN_DATE = FROM_DT     "start date
+        EV_MONTH_END_DATE   = TO_DATE.
+
+  ENDIF.
+
+  PERFORM GET_BASE_DATA.
+  IF NOT GT_FORECAST[] IS INITIAL.
+    PERFORM GET_DATA_OPTIMIZED.
+  ENDIF.
+
+  PERFORM DISPLAY.
+
+*&---------------------------------------------------------------------*
+*&      Form  get_base_data
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*    BOC by TMC-Faheem on 25.01.2016
+FORM GET_BASE_DATA.
+
+  SELECT MARA~MATNR
+    FROM MARA
+    INNER JOIN MARC ON MARA~MATNR = MARC~MATNR
+     INTO TABLE LT_ITAB
+      WHERE MARA~MATNR IN MATERIAL AND
+            WERKS IN PLANT.
+
+
+  IF NOT LT_ITAB[] IS INITIAL.
+* Get planing
+    SELECT ZSALES_FC~MATNR ZSALES_FC~REGION ZSALES_FC~PLNMG ZSALES_FC~LGORT
+      FROM ZSALES_FC
+      INTO CORRESPONDING FIELDS OF TABLE GT_FORECAST
+      FOR ALL ENTRIES IN LT_ITAB
+      WHERE ZSALES_FC~MATNR EQ LT_ITAB-MATNR AND
+            REGION IN REGION                  AND
+            FROM_DT EQ FROM_DT              AND
+            LGORT IN LGORT.
+
+    LOOP AT GT_FORECAST.
+      SELECT SUM( ZSALES_FC~PLNMG )
+      FROM ZSALES_FC
+      INTO GT_FORECAST-PLNMG
+      WHERE ZSALES_FC~MATNR EQ GT_FORECAST-MATNR AND
+            REGION EQ GT_FORECAST-REGION                  AND
+            FROM_DT BETWEEN FROM_DT AND TO_DATE           AND
+            LGORT EQ GT_FORECAST-LGORT.
+      MODIFY GT_FORECAST FROM GT_FORECAST TRANSPORTING PLNMG.
+    ENDLOOP.
+  ENDIF.
+
+
+ENDFORM.                    "get_base_data
+*&---------------------------------------------------------------------*
+*&      Form  get_data_optimized
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM GET_DATA_OPTIMIZED.
+
+
+  DATA: SUM TYPE PLNMG, PER TYPE PLNMG.
+
+  DATA:
+    BEGIN OF GT_STOCKC OCCURS 0,
+      MATNR LIKE MARA-MATNR,
+      LABST LIKE MARD-LABST,
+      LGORT LIKE MARD-LGORT,
+      WERKS LIKE MARD-WERKS,
+    END OF GT_STOCKC,
+    BEGIN OF GT_STOC OCCURS 0,
+      MATNR LIKE MARA-MATNR,
+      LABST LIKE MARD-LABST,
+      LGORT LIKE MARD-LGORT,
+      WERKS LIKE MARD-WERKS,
+    END OF GT_STOC,
+    BEGIN OF GT_STOCKCC OCCURS 0,
+      MATNR LIKE MARA-MATNR,
+      LABST LIKE MARD-LABST,
+      LGORT LIKE MARD-LGORT,
+      WERKS LIKE MARD-WERKS,
+    END OF GT_STOCKCC.
+
+
+  DATA: BEGIN OF GT_WERKS OCCURS 0,
+          MATNR LIKE MARA-MATNR,
+          WERKS LIKE MARC-WERKS,
+        END OF GT_WERKS,
+
+        BEGIN OF GT_FORE OCCURS 0,
+          MATNR      LIKE MARA-MATNR,
+          WERKS      LIKE MARC-WERKS,
+          LGORT      LIKE MARD-LGORT,
+          STOCK_3052 LIKE MARD-LABST,
+          STOCK_1060 LIKE MARD-LABST,
+          STOCK_2051 LIKE MARD-LABST,
+          STOCK_2004 LIKE MARD-LABST,
+          STOCK_2050 LIKE MARD-LABST,
+          STOCK_2055 LIKE MARD-LABST,
+          STOCK_106A LIKE MARD-LABST,
+          STOCK_205A LIKE MARD-LABST,
+
+        END OF GT_FORE.
+
+  DATA: MATNR TYPE MATNR.
+  SORT LT_ITAB BY NEW_MATNR.
+
+  SELECT LGORT
+         WERKS
+         LGOBE
+    FROM T001L
+    INTO TABLE LT_T001L
+    FOR ALL ENTRIES IN GT_FORECAST
+    WHERE LGORT = GT_FORECAST-LGORT.
+  IF SY-SUBRC EQ 0.
+    SORT LT_T001L.
+    DELETE ADJACENT DUPLICATES FROM LT_T001L COMPARING ALL FIELDS.
+  ENDIF.
+
+  LOOP AT GT_FORECAST.
+    READ TABLE LT_ITAB ASSIGNING <FS_ITAB> WITH KEY NEW_MATNR = GT_FORECAST-MATNR
+                                                    BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      GT_FORECAST-MATNR = <FS_ITAB>-MATNR.
+    ENDIF.
+
+    READ TABLE LT_T001L ASSIGNING <FS_T001L> WITH KEY LGORT = GT_FORECAST-LGORT
+                                                    BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      GT_FORECAST-WERKS = <FS_T001L>-WERKS.
+    ENDIF.
+
+    MODIFY GT_FORECAST TRANSPORTING MATNR WERKS.
+
+*    SELECT MATNR, RESWK, WERKS, EKPO~LGORT, EKPO~EBELN, EKPO~EBELP,
+*      ( CASE WHEN EKET~WAMNG <> EKET~WEMNG THEN EKET~WAMNG - EKET~WEMNG END ) AS MENGE,
+*     ( CASE WHEN EKPO~ELIKZ EQ 'X' THEN 0 WHEN EKET~WAMNG EQ 0 THEN EKPO~MENGE WHEN EKET~WAMNG GT EKPO~MENGE THEN 0 WHEN EKET~WAMNG <> EKPO~MENGE THEN EKPO~MENGE - EKET~WAMNG END ) AS MENGE_PSTO                                          "Planned STO
+*     APPENDING CORRESPONDING FIELDS OF TABLE @ST
+*     FROM ( EKKO INNER JOIN EKPO ON
+*            EKKO~EBELN = EKPO~EBELN
+*          )
+*          INNER JOIN EKET
+*          ON  EKPO~EBELN = EKET~EBELN
+*          AND EKPO~EBELP = EKET~EBELP
+*     WHERE MATNR EQ @GT_FORECAST-MATNR
+*     AND EKPO~WERKS EQ @GT_FORECAST-WERKS
+*     AND EKPO~LOEKZ EQ ''
+*     AND EKPO~BSTYP IN ('F', 'L')
+*     AND RESWK <> @SPACE
+*     AND LGORT = @GT_FORECAST-LGORT.
+
+
+    SELECT MATNR, RESWK, WERKS, EKPO~LGORT, EKPO~EBELN, EKPO~EBELP,    "Modification by Ahsan on 24.02.2021 for STR Project
+    ( CASE WHEN EKET~WAMNG <> EKET~WEMNG THEN EKET~WAMNG - EKET~WEMNG END ) AS MENGE,
+    ( CASE WHEN EKPO~ELIKZ EQ 'X' THEN 0 WHEN EKET~WAMNG <> EKET~GLMNG AND EKPO~LFRET EQ 'NL' THEN EKET~GLMNG - EKET~WAMNG END ) AS MENGE_PSTO,     "Planned STO
+    ( CASE WHEN EKPO~ELIKZ EQ 'X' THEN 0 WHEN EKET~WAMNG EQ 0 THEN EKPO~MENGE WHEN EKET~WAMNG GT EKPO~MENGE THEN 0 WHEN EKET~WAMNG <> EKPO~MENGE THEN EKPO~MENGE - EKET~WAMNG END ) AS MENGE_OSTO
+     APPENDING CORRESPONDING FIELDS OF TABLE @ST
+     FROM ( EKKO INNER JOIN EKPO ON
+            EKKO~EBELN = EKPO~EBELN
+          )
+          INNER JOIN EKET
+          ON  EKPO~EBELN = EKET~EBELN
+          AND EKPO~EBELP = EKET~EBELP
+     WHERE MATNR EQ @GT_FORECAST-MATNR
+     AND EKPO~WERKS EQ @GT_FORECAST-WERKS
+     AND EKPO~LOEKZ NE 'L'
+     AND EKPO~BSTYP IN ('F', 'L')
+     AND RESWK <> @SPACE
+     AND LGORT = @GT_FORECAST-LGORT.
+
+
+
+
+  ENDLOOP.
+  "////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+  SELECT  A~MATNR
+           SUM( A~INSME  ) AS INSME
+*            A~LGORT
+
+          A~WERKS AS WERKS
+    FROM MARD AS A INNER JOIN MARA  AS B ON A~MATNR = B~MATNR
+*      lEFT JOIN MARM AS C  ON C~MATNR = A~MATNR AND C~MEINH = 'KAR'
+*      INTO TABLE GT_Q1
+**      FOR ALL ENTRIES IN GT_FORECAST
+*         WHERE  MATNR =  GT_FORECAST-MATNR  AND
+*                LGORT = GT_FORECAST-LGORT   AND
+*                WERKS IN PLANT.
+    INTO CORRESPONDING FIELDS OF TABLE GT_Q1
+*      FOR ALL ENTRIES IN GT_FORECAST
+       WHERE  A~MATNR IN  MATERIAL  AND
+*                A~WERKS IN PLANT AND
+              A~LGORT NOT IN ( 1054 ,1055 ,6052 ,7075,  8052, 8075, 9052, 1075, 1082, 5052, 1083, 2086, 1059, 1072, 8082, 1081, 1071 )
+              AND A~INSME <> 0
+              AND B~MTART IN ('FGLO' , 'TSCH')
+    GROUP BY
+A~MATNR
+A~WERKS.
+*BREAK-POINT.
+
+  LOOP AT GT_Q1.
+*      GT_Q2-MATNR = GT_Q1-MATNR.
+*      GT_Q2WERKS = GT_Q1-WERKS.
+    IF P_RAD2 EQ 'X'.
+      SELECT SINGLE UMREZ  FROM MARM INTO (GT_Q1-UMREZ ) WHERE MATNR = GT_Q1-MATNR AND MEINH = 'KAR'.
+    ELSE.
+      GT_Q1-UMREZ = 1.
+    ENDIF.
+
+    IF GT_Q1-UMREZ NE 0.
+      GT_Q1-ZINSME = GT_Q1-INSME / GT_Q1-UMREZ.
+    ELSE.
+      GT_Q1-ZINSME = GT_Q1-INSME.
+    ENDIF.
+*BREAK-POINT.
+
+
+*      AT END OF WERKS.
+    IF GT_Q1-WERKS = '1000' .
+      GT_Q1-PLANT_1000 = GT_Q1-ZINSME.
+    ELSEIF GT_Q1-WERKS = '2000' .
+      GT_Q1-PLANT_2000 = GT_Q1-ZINSME.
+    ELSEIF GT_Q1-WERKS = '2500'.
+      GT_Q1-PLANT_2500 = GT_Q1-ZINSME.
+    ELSEIF GT_Q1-WERKS = '3000' .
+      GT_Q1-PLANT_3000 = GT_Q1-ZINSME.
+    ELSEIF GT_Q1-WERKS = '5000'.
+      GT_Q1-PLANT_5000 = GT_Q1-ZINSME.
+    ELSEIF GT_Q1-WERKS = '5500'.
+      GT_Q1-PLANT_5500 = GT_Q1-ZINSME.
+
+    ELSEIF GT_Q1-WERKS = '6000'.
+      GT_Q1-PLANT_6000 = GT_Q1-ZINSME.
+    ELSEIF GT_Q1-WERKS = '7000'.
+      GT_Q1-PLANT_7000 = GT_Q1-ZINSME.
+    ELSEIF GT_Q1-WERKS = '8000'.
+      GT_Q1-PLANT_8000 = GT_Q1-ZINSME.
+    ELSEIF GT_Q1-WERKS = '9000'.
+      GT_Q1-PLANT_9000 = GT_Q1-ZINSME.
+
+    ENDIF.
+
+*      ENDAT.
+    MODIFY GT_Q1.
+
+*  COLLECT  GT_Q2.
+  ENDLOOP.
+
+  LOOP AT GT_Q1.
+    MOVE-CORRESPONDING GT_Q1 TO GT_Q2 .
+    COLLECT GT_Q2 .
+  ENDLOOP.
+
+
+
+  "////////////////////////////////////////////////////////////
+
+
+  SELECT  MATNR
+          LABST
+          LGORT
+          WERKS
+    FROM MARD
+    INTO TABLE GT_STOCKC
+    FOR ALL ENTRIES IN GT_FORECAST
+       WHERE  MATNR =  GT_FORECAST-MATNR  AND
+              LGORT = GT_FORECAST-LGORT   AND
+              WERKS IN PLANT.
+
+
+  SELECT  MATNR
+          LABST
+          LGORT
+          WERKS
+    FROM MARD
+    INTO TABLE GT_STOC
+    FOR ALL ENTRIES IN GT_FORECAST
+    WHERE MATNR =  GT_FORECAST-MATNR AND
+          LGORT IN ('3052' ,'1060' ,'2051','2004','2050','2055', '205A', '106A').
+
+  SORT GT_FORECAST BY MATNR.
+  DELETE ADJACENT DUPLICATES FROM GT_FORECAST COMPARING ALL FIELDS.
+
+
+  LOOP AT GT_STOC.
+    GT_FORE-MATNR = GT_STOC-MATNR.
+    GT_FORE-LGORT = GT_STOC-LGORT.
+
+    AT END OF WERKS.
+      IF GT_STOC-LGORT = '3052'.
+        GT_FORE-STOCK_3052 = GT_STOC-LABST.
+      ELSEIF GT_STOC-LGORT = '1060'.
+        GT_FORE-STOCK_1060 = GT_STOC-LABST.
+      ELSEIF GT_STOC-LGORT = '2051'.
+        GT_FORE-STOCK_2051 = GT_STOC-LABST.
+      ELSEIF GT_STOC-LGORT = '2004'.
+        GT_FORE-STOCK_2004 = GT_STOC-LABST.
+      ELSEIF GT_STOC-LGORT = '2050'.
+        GT_FORE-STOCK_2050 = GT_STOC-LABST.
+      ELSEIF GT_STOC-LGORT = '2055'.
+        GT_FORE-STOCK_2055 = GT_STOC-LABST.
+      ELSEIF GT_STOC-LGORT = '106A'.                                              "New LGORT Added on 30.07.2020 BY ZAK
+        GT_FORE-STOCK_106A = GT_STOC-LABST.
+      ELSEIF GT_STOC-LGORT = '205A'.                                              "New LGORT Added on 30.07.2020 BY ZAK
+        GT_FORE-STOCK_205A = GT_STOC-LABST.
+      ENDIF.
+      COLLECT GT_FORE.
+    ENDAT.
+  ENDLOOP.
+
+  DATA: MENG LIKE EKET-MENGE.
+  ST1[] = ST[].
+
+  SORT ST1 BY MATNR WERKS LGORT.
+  DELETE ADJACENT DUPLICATES FROM ST1 COMPARING  MATNR WERKS LGORT.
+
+  LOOP AT ST.
+    WA_ST-MATNR = ST-MATNR.
+    WA_ST-WERKS = ST-WERKS.
+    WA_ST-LGORT = ST-LGORT.
+    WA_ST-MENGE = ST-MENGE.
+    WA_ST-MENGE_PSTO = ST-MENGE_PSTO.
+    WA_ST-MENGE_OSTO = ST-MENGE_OSTO.
+    COLLECT WA_ST INTO LT_ST.
+    CLEAR: WA_ST.
+  ENDLOOP.
+
+  LOOP AT ST1.
+    READ TABLE LT_ST ASSIGNING <FS_ST> WITH KEY MATNR = ST1-MATNR
+                                                WERKS = ST1-WERKS
+                                                LGORT = ST1-LGORT.
+    IF SY-SUBRC EQ 0.
+      ST1-MENGE = <FS_ST>-MENGE.
+      ST1-MENGE_PSTO = <FS_ST>-MENGE_PSTO.
+      ST1-MENGE_OSTO = <FS_ST>-MENGE_OSTO.
+      MODIFY ST1 TRANSPORTING MENGE MENGE_PSTO MENGE_OSTO.
+    ENDIF.
+  ENDLOOP.
+
+  SORT ST1 BY MATNR WERKS LGORT.
+  DELETE ADJACENT DUPLICATES FROM ST1 COMPARING  MATNR WERKS LGORT.
+
+  DATA: LABST TYPE LABST.
+
+  GT_STOCKCC[] = GT_STOCKC[].
+  DELETE ADJACENT DUPLICATES FROM GT_STOCKCC COMPARING MATNR WERKS LGORT.
+
+  DATA: LAS TYPE LABST.
+
+  SORT GT_STOCKCC BY MATNR WERKS LGORT.
+  SORT GT_STOCKC BY MATNR WERKS LGORT.
+
+  LOOP AT GT_STOCKC.
+
+    WA_STOCKC-MATNR = GT_STOCKC-MATNR.
+    WA_STOCKC-WERKS = GT_STOCKC-WERKS.
+    WA_STOCKC-LGORT = GT_STOCKC-LGORT.
+    WA_STOCKC-LABST = GT_STOCKC-LABST.
+
+    COLLECT WA_STOCKC INTO LT_STOCKC.
+  ENDLOOP.
+
+
+  SORT LT_STOCKC BY MATNR WERKS LGORT.
+
+  LOOP AT GT_STOCKCC.
+    READ TABLE LT_STOCKC ASSIGNING <FS_STOCKC> WITH KEY MATNR = GT_STOCKCC-MATNR
+                                                        WERKS = GT_STOCKCC-WERKS
+                                                        LGORT = GT_STOCKCC-LGORT
+                                                        BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      GT_STOCKCC-LABST = <FS_STOCKC>-LABST.
+      MODIFY GT_STOCKCC TRANSPORTING LABST.
+    ENDIF.
+  ENDLOOP.
+
+
+  SORT GT_STOCKCC BY MATNR WERKS LGORT.
+  SORT GT_FORECAST BY MATNR WERKS LGORT.
+
+
+  LOOP AT GT_FORECAST ASSIGNING <FS_FORECAST>.
+*      BOC by TMC-Faheem on 25.01.2016
+    READ TABLE LT_STOCKC ASSIGNING <FS_STOCKC> WITH KEY MATNR = <FS_FORECAST>-MATNR
+                                                        WERKS = <FS_FORECAST>-WERKS
+                                                        LGORT = <FS_FORECAST>-LGORT
+                                                        BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      <FS_FORECAST>-LABST = <FS_STOCKC>-LABST.
+    ENDIF.
+    GT_FINAL-MATNR = <FS_FORECAST>-MATNR.
+*  gt_final-werks = gt_forecast-werks.
+    GT_FINAL-REGIO = <FS_FORECAST>-REGION.
+    GT_FINAL-LGORT = <FS_FORECAST>-LGORT.
+    GT_FINAL-LABST = <FS_FORECAST>-LABST.
+    GT_FINAL-PLNMG = <FS_FORECAST>-PLNMG .
+
+    APPEND GT_FINAL.
+*      EOC by TMC-Faheem on 25.01.2016
+  ENDLOOP.
+
+
+  SELECT LIPS~VBELN  LIPS~POSNR LIKP~WADAT_IST LIKP~KUNNR LIKP~KUNAG LIPS~VGBEL  KNA1~LOCCO LIPS~LGORT "KNA1~LOCCO
+          LIPS~UECHA LIPS~MATNR LIPS~LFIMG LIPS~WERKS LIPS~CHARG
+          KNVV~BZIRK AS REGIO
+   APPENDING CORRESPONDING FIELDS OF TABLE GT_MAIN FROM LIKP
+   INNER JOIN LIPS ON
+                 LIKP~VBELN = LIPS~VBELN
+   INNER JOIN VBAP ON
+                 LIPS~VGBEL = VBAP~VBELN AND
+                   LIPS~VGPOS = VBAP~POSNR AND
+                   LIPS~MATNR = VBAP~MATNR
+
+   INNER JOIN VBAK ON
+                   VBAK~VBELN = VBAP~VBELN
+   INNER JOIN KNVV ON
+                   KNVV~VKORG = VBAK~VKORG AND
+                    KNVV~VTWEG = VBAK~VTWEG AND
+                     KNVV~SPART = VBAK~SPART AND
+                       KNVV~KUNNR = VBAK~KUNNR
+   INNER JOIN KNA1 ON
+                   KNA1~KUNNR = LIKP~KUNNR
+
+   WHERE                                                                    "Change''
+
+         LIPS~WERKS IN PLANT AND
+         LIPS~MATNR IN MATERIAL AND
+         LIPS~LGORT IN LGORT AND
+         WADAT_IST  >= FROM_DT AND WADAT_IST =< TO_DATE AND
+         LIPS~LFIMG NE 0 AND
+
+         LIKP~LFART NE 'LR'.
+*             LIKP~LFART eq 'cb'.
+  SORT GT_MAIN BY VBELN MATNR.
+
+
+
+
+  "************************************************************************************************
+  LOOP AT GT_FINAL.
+    LOOP AT GT_MAIN WHERE MATNR EQ GT_FINAL-MATNR AND LOCCO EQ GT_FINAL-LGORT.
+      GT_MAINNNN-MATNR = GT_MAIN-MATNR.
+*      GT_MAINNNN-LGORT = GT_MAIN-LGORT.
+      GT_MAINNNN-LFIMG = GT_MAIN-LFIMG.
+      GT_MAINNNN-LOCCO = GT_MAIN-LOCCO.
+      COLLECT GT_MAINNNN.
+*      append GT_MAINNNN.
+    ENDLOOP.
+  ENDLOOP.
+
+
+  LOOP AT GT_FINAL.
+    LOOP AT GT_MAINNNN WHERE MATNR EQ GT_FINAL-MATNR AND LOCCO EQ GT_FINAL-LGORT.
+      GT_FINAL-LFIMG =  GT_MAINNNN-LFIMG.
+      MODIFY GT_FINAL TRANSPORTING LFIMG.
+    ENDLOOP.
+  ENDLOOP.
+
+
+
+  IF NOT GT_FINAL[] IS INITIAL.
+
+    SELECT MATNR
+           MTART
+           MATKL
+      FROM MARA
+      INTO TABLE LT_MARA
+      FOR ALL ENTRIES IN GT_FINAL
+      WHERE MATNR = GT_FINAL-MATNR.
+
+    IF SY-SUBRC EQ 0.
+      SORT LT_MARA.
+      DELETE ADJACENT DUPLICATES FROM LT_MARA COMPARING ALL FIELDS.
+      SORT LT_MARA BY MATNR.
+
+      SELECT  MTART
+              MTBEZ
+          FROM T134T
+          INTO TABLE LT_T134T
+          FOR ALL ENTRIES IN LT_MARA
+          WHERE MTART = LT_MARA-MTART AND
+                SPRAS = 'EN'.
+
+      IF SY-SUBRC EQ 0.
+        SORT LT_T134T.
+        DELETE ADJACENT DUPLICATES FROM LT_T134T COMPARING ALL FIELDS.
+      ENDIF.
+
+      SELECT  MATKL
+              WGBEZ
+          FROM T023T
+          INTO TABLE LT_T023T
+          FOR ALL ENTRIES IN LT_MARA
+          WHERE MATKL = LT_MARA-MATKL AND
+                SPRAS = 'EN'.
+
+      IF SY-SUBRC EQ 0.
+        SORT LT_T023T.
+        DELETE ADJACENT DUPLICATES FROM LT_T023T COMPARING ALL FIELDS.
+      ENDIF.
+
+    ENDIF.
+
+    SELECT MATNR
+           MAKTX
+    FROM MAKT
+    INTO TABLE LT_MAKT
+    FOR ALL ENTRIES IN GT_FINAL
+    WHERE MATNR = GT_FINAL-MATNR AND
+          SPRAS = 'EN'.
+
+    IF SY-SUBRC EQ 0.
+      SORT LT_MAKT.
+      DELETE ADJACENT DUPLICATES FROM LT_MAKT COMPARING ALL FIELDS.
+    ENDIF.
+
+    SELECT BZIRK
+           BZTXT
+    FROM T171T
+    INTO TABLE LT_T171T
+    FOR ALL ENTRIES IN GT_FINAL
+    WHERE BZIRK = GT_FINAL-REGIO AND
+          SPRAS = 'EN'.
+
+    IF SY-SUBRC EQ 0.
+      SORT LT_T171T.
+      DELETE ADJACENT DUPLICATES FROM LT_T171T COMPARING ALL FIELDS.
+    ENDIF.
+
+    SELECT MATNR
+           UMREZ
+    FROM MARM
+    INTO TABLE LT_MARM
+    FOR ALL ENTRIES IN GT_FINAL
+    WHERE MATNR = GT_FINAL-MATNR AND
+          MEINH = 'KAR'.
+
+    IF SY-SUBRC EQ 0.
+      SORT LT_MARM.
+      DELETE ADJACENT DUPLICATES FROM LT_MARM COMPARING ALL FIELDS.
+    ENDIF.
+
+    IF LT_T001L[] IS INITIAL.
+      SELECT LGORT
+             WERKS
+             LGOBE
+      FROM T001L
+      INTO TABLE LT_T001L
+      FOR ALL ENTRIES IN GT_FINAL
+      WHERE LGORT = GT_FINAL-LGORT.
+
+      IF SY-SUBRC EQ 0.
+        SORT LT_T001L.
+        DELETE ADJACENT DUPLICATES FROM LT_T001L COMPARING ALL FIELDS.
+      ENDIF.
+
+    ENDIF.
+
+    IF NOT LT_T001L[] IS INITIAL.
+      SELECT WERKS
+             NAME1
+      FROM T001W
+      INTO TABLE LT_T001W
+      FOR ALL ENTRIES IN LT_T001L
+      WHERE WERKS = LT_T001L-WERKS AND
+            SPRAS = 'EN'.
+
+      IF SY-SUBRC EQ 0.
+        SORT LT_T001W.
+        DELETE ADJACENT DUPLICATES FROM LT_T001W COMPARING ALL FIELDS.
+      ENDIF.
+    ENDIF.
+
+  ENDIF.
+
+  SORT GT_FORE BY MATNR LGORT.
+
+  LOOP AT GT_FINAL.
+
+    READ TABLE LT_MARA ASSIGNING <FS_MARA> WITH KEY MATNR = GT_FINAL-MATNR
+                                                              BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      GT_FINAL-MATKL = <FS_MARA>-MATKL.
+      GT_FINAL-MTART = <FS_MARA>-MTART.
+    ENDIF.
+    READ TABLE LT_MAKT ASSIGNING <FS_MAKT> WITH KEY MATNR = GT_FINAL-MATNR
+                                                              BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      GT_FINAL-MAKTX = <FS_MAKT>-MAKTX.
+    ENDIF.
+
+    READ TABLE LT_T171T ASSIGNING <FS_T171T> WITH KEY BZIRK = GT_FINAL-REGIO
+                                                              BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      GT_FINAL-BEZEI = <FS_T171T>-BZTXT.
+    ENDIF.
+
+    SUM =  GT_FINAL-LABST + GT_FINAL-LFIMG.   " gt_final-menge +
+*BREAK-POINT.
+    IF TO_DATE+6(2) >= 20.
+      IF ( SUM < GT_FINAL-PLNMG ) .
+        GT_FINAL-CONN = 'False'.
+      ELSE.
+        GT_FINAL-CONN = 'True'.
+      ENDIF.
+    ELSE.
+      PER = GT_FINAL-PLNMG * 50 / 100 .
+      IF ( SUM < PER ).
+        GT_FINAL-CONN = 'False'.
+      ELSE.
+        GT_FINAL-CONN = 'True'.
+      ENDIF.
+    ENDIF.
+
+    READ TABLE LT_MARM ASSIGNING <FS_MARM> WITH KEY MATNR = GT_FINAL-MATNR
+                                                    BINARY SEARCH.
+
+    DATA: LV_OMENG1 TYPE VBBE-OMENG,
+          LV_OMENG2 TYPE VBBE-OMENG.
+
+    IF P_RAD1 EQ 'X'.
+      <FS_MARM>-UMREZ = 1.                                                         "Unit Radio Button Selected.
+    ENDIF.
+    IF SY-SUBRC EQ 0.
+      GT_FINAL-PLNMG = GT_FINAL-PLNMG / <FS_MARM>-UMREZ.
+      GT_FINAL-LFIMG = GT_FINAL-LFIMG / <FS_MARM>-UMREZ.
+      GT_FINAL-LABST = GT_FINAL-LABST / <FS_MARM>-UMREZ.
+      GT_FINAL-MENGE = GT_FINAL-MENGE / <FS_MARM>-UMREZ.
+
+      MODIFY GT_FINAL TRANSPORTING  MENGE PLNMG LFIMG LABST .
+      "Inc. Sch. Delv. for Pool SL
+      IF P_CHK1 EQ 'X'.                                                                "Inc. Sch. Delv. for Pool SL
+        LOOP AT  GT_FORE ASSIGNING <FS_FORE> WHERE MATNR = GT_FINAL-MATNR.
+
+          SELECT SUM( VBBE~OMENG ) FROM VBBE INTO LV_OMENG1
+            WHERE MATNR = <FS_FORE>-MATNR AND LGORT = <FS_FORE>-LGORT AND VBTYP = 'J' .
+
+          SELECT SUM( VBBS~OMENG ) FROM VBBS INTO LV_OMENG2
+              WHERE MATNR = <FS_FORE>-MATNR AND LGORT = <FS_FORE>-LGORT AND VBTYP = 'J' .
+
+          LV_OMENG1 = ( LV_OMENG1 + LV_OMENG2 ) / <FS_MARM>-UMREZ.
+
+          IF <FS_FORE>-LGORT = '1060'.
+
+            GT_FINAL-STOCK_1060 = ( <FS_FORE>-STOCK_1060 / <FS_MARM>-UMREZ ) - LV_OMENG1.
+
+*        MODIFY gt_final TRANSPORTING  stock_1060 .
+          ELSEIF <FS_FORE>-LGORT = '2051'.
+            GT_FINAL-STOCK_2051 = ( <FS_FORE>-STOCK_2051 / <FS_MARM>-UMREZ ) - LV_OMENG1.
+
+*        MODIFY gt_final TRANSPORTING  stock_2051 .
+          ELSEIF <FS_FORE>-LGORT = '3052' .
+            GT_FINAL-STOCK_3052 = ( <FS_FORE>-STOCK_3052 / <FS_MARM>-UMREZ ) - LV_OMENG1.
+
+          ELSEIF <FS_FORE>-LGORT = '2004' .
+            GT_FINAL-STOCK_2004 = ( <FS_FORE>-STOCK_2004 / <FS_MARM>-UMREZ ) - LV_OMENG1.
+
+          ELSEIF <FS_FORE>-LGORT = '2050' .
+            GT_FINAL-STOCK_2050 = ( <FS_FORE>-STOCK_2050 / <FS_MARM>-UMREZ ) - LV_OMENG1.
+
+          ELSEIF <FS_FORE>-LGORT = '2055' .
+            GT_FINAL-STOCK_2055 = ( <FS_FORE>-STOCK_2055 / <FS_MARM>-UMREZ ) - LV_OMENG1.
+
+          ELSEIF <FS_FORE>-LGORT = '106A'.                                              "New LGORT Added on 30.07.2020 BY ZAK
+            GT_FINAL-STOCK_106A = ( <FS_FORE>-STOCK_106A / <FS_MARM>-UMREZ ) - LV_OMENG1.
+          ELSEIF <FS_FORE>-LGORT = '205A'.                                              "New LGORT Added on 30.07.2020 BY ZAK
+            GT_FINAL-STOCK_205A = ( <FS_FORE>-STOCK_205A / <FS_MARM>-UMREZ ) - LV_OMENG1.
+
+
+*        MODIFY gt_final TRANSPORTING   stock_3052.
+          ENDIF.
+          CLEAR: LV_OMENG1, LV_OMENG2.
+        ENDLOOP.
+
+      ELSE.
+
+        LOOP AT  GT_FORE ASSIGNING <FS_FORE> WHERE MATNR = GT_FINAL-MATNR.
+
+          IF <FS_FORE>-LGORT = '1060'.
+
+            GT_FINAL-STOCK_1060 = <FS_FORE>-STOCK_1060 / <FS_MARM>-UMREZ.
+
+*        MODIFY gt_final TRANSPORTING  stock_1060 .
+          ELSEIF <FS_FORE>-LGORT = '2051'.
+            GT_FINAL-STOCK_2051 = <FS_FORE>-STOCK_2051 / <FS_MARM>-UMREZ.
+
+*        MODIFY gt_final TRANSPORTING  stock_2051 .
+          ELSEIF <FS_FORE>-LGORT = '3052' .
+            GT_FINAL-STOCK_3052 = <FS_FORE>-STOCK_3052 / <FS_MARM>-UMREZ.
+
+          ELSEIF <FS_FORE>-LGORT = '2004' .
+            GT_FINAL-STOCK_2004 = <FS_FORE>-STOCK_2004 / <FS_MARM>-UMREZ.
+
+          ELSEIF <FS_FORE>-LGORT = '2050' .
+            GT_FINAL-STOCK_2050 = <FS_FORE>-STOCK_2050 / <FS_MARM>-UMREZ.
+
+          ELSEIF <FS_FORE>-LGORT = '2055' .
+            GT_FINAL-STOCK_2055 = <FS_FORE>-STOCK_2055 / <FS_MARM>-UMREZ.
+
+          ELSEIF <FS_FORE>-LGORT = '106A'.                                              "New LGORT Added on 30.07.2020 BY ZAK
+            GT_FINAL-STOCK_106A = <FS_FORE>-STOCK_106A / <FS_MARM>-UMREZ.
+          ELSEIF <FS_FORE>-LGORT = '205A'.                                              "New LGORT Added on 30.07.2020 BY ZAK
+            GT_FINAL-STOCK_205A = <FS_FORE>-STOCK_205A / <FS_MARM>-UMREZ.
+
+
+*        MODIFY gt_final TRANSPORTING   stock_3052.
+          ENDIF.
+
+        ENDLOOP.
+
+      ENDIF.
+
+    ENDIF.
+
+    CLEAR PER.
+    GT_FINAL-SAL = GT_FINAL-PLNMG - GT_FINAL-LFIMG.
+    PER    = GT_FINAL-LFIMG + GT_FINAL-NET .
+    IF GT_FINAL-PLNMG NE 0.
+      GT_FINAL-PER = ( PER / GT_FINAL-PLNMG ) * 100.
+    ENDIF.
+    IF TO_DATE+6(2) =< 10.
+      IF GT_FINAL-PER =< 50.
+        GT_FINAL-STATUS = 'True'.
+      ELSE.
+        GT_FINAL-STATUS = 'False'.
+      ENDIF.
+
+
+    ELSEIF TO_DATE+6(2) >= 16.
+      IF GT_FINAL-PER >= 100 .
+        GT_FINAL-STATUS = 'True'.
+      ELSE.
+        GT_FINAL-STATUS = 'False'.
+      ENDIF.
+
+    ELSEIF TO_DATE+6(2) > 10 AND TO_DATE+6(2) =< 15.
+      IF GT_FINAL-PER =< 75 AND  GT_FINAL-PER > 50 .
+        GT_FINAL-STATUS = 'True'.
+      ELSE.
+        GT_FINAL-STATUS = 'False'.
+      ENDIF.
+
+    ENDIF.
+
+    GT_FINAL-INVENT = GT_FINAL-PLNMG * '0.5'.
+    GT_FINAL-NET = GT_FINAL-LABST + GT_FINAL-MENGE.
+*    gt_final-req_fc = gt_final-PLNMG - gt_final-LFIMG - gt_final-net.
+
+    READ TABLE LT_T134T ASSIGNING <FS_T134T> WITH KEY MTART = GT_FINAL-MTART
+                                                              BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      GT_FINAL-MTBEZ = <FS_T134T>-MTBEZ.
+    ENDIF.
+
+    READ TABLE LT_T023T ASSIGNING <FS_T023T> WITH KEY MATKL = GT_FINAL-MATKL
+                                                              BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      GT_FINAL-WGBEZ = <FS_T023T>-WGBEZ.
+    ENDIF.
+
+    READ TABLE LT_T001L ASSIGNING <FS_T001L> WITH KEY LGORT = GT_FINAL-LGORT
+                                                              BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      GT_FINAL-LGOBE = <FS_T001L>-LGOBE.
+      GT_FINAL-WERKS = <FS_T001L>-WERKS.
+    ENDIF.
+
+    READ TABLE LT_T001W ASSIGNING <FS_T001W> WITH KEY WERKS = GT_FINAL-WERKS
+                                                              BINARY SEARCH.
+    IF SY-SUBRC EQ 0.
+      GT_FINAL-NAME1 = <FS_T001W>-NAME1.
+    ENDIF.
+
+    READ TABLE ST1 ASSIGNING <FS_ST1> WITH KEY MATNR = GT_FINAL-MATNR
+                                                  LGORT = GT_FINAL-LGORT
+                                                  WERKS = GT_FINAL-WERKS.
+    IF SY-SUBRC EQ 0.
+      GT_FINAL-MENGE =  <FS_ST1>-MENGE.
+      GT_FINAL-MENGE_PSTO =  <FS_ST1>-MENGE_PSTO.                           "Planned STO
+      GT_FINAL-MENGE_OSTO =  <FS_ST1>-MENGE_OSTO.
+    ENDIF.
+
+    GT_FINAL-MENGE = GT_FINAL-MENGE / <FS_MARM>-UMREZ.
+    GT_FINAL-MENGE_PSTO = GT_FINAL-MENGE_PSTO / <FS_MARM>-UMREZ.
+    GT_FINAL-MENGE_OSTO = GT_FINAL-MENGE_OSTO / <FS_MARM>-UMREZ.
+
+    GT_FINAL-NET = GT_FINAL-LABST + GT_FINAL-MENGE + GT_FINAL-MENGE_PSTO.
+
+    GT_FINAL-REQ_FC = GT_FINAL-PLNMG - GT_FINAL-LFIMG - GT_FINAL-NET.
+
+    MODIFY GT_FINAL TRANSPORTING MAKTX BEZEI MTART MATKL CON CONN PLNMG LFIMG LABST MENGE STATUS SAL PER INVENT NET REQ_FC STOCK_1060 STOCK_2051 STOCK_3052 STOCK_2050 STOCK_2055 STOCK_2004 MTBEZ WGBEZ NAME1 LGOBE WERKS MENGE
+                                 STOCK_106A STOCK_205A MENGE_PSTO MENGE_OSTO.
+
+    CLEAR: SUM, PER.
+
+  ENDLOOP.
+
+ENDFORM.                    "get_data_optimized
+*    EOC by TMC-Faheem on 25.01.2016
+*&---------------------------------------------------------------------*
+*&      Form  get_data
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*FORM GET_DATA.
+*
+*  DATA: BEGIN OF ITAB OCCURS 0,
+*          MATNR LIKE MARA-MATNR,
+*        END OF ITAB,
+*        BEGIN OF ITAB1 OCCURS 0,
+*          MATNR LIKE MARA-MATNR,
+*        END OF ITAB1,
+*        BEGIN OF GT_STOCKC OCCURS 0,
+*          MATNR LIKE MARA-MATNR,
+*          LABST LIKE MARD-LABST,
+*          LGORT LIKE MARD-LGORT,
+*          WERKS LIKE MARD-WERKS,
+*        END OF GT_STOCKC,
+*        BEGIN OF GT_STOC OCCURS 0,
+*          MATNR LIKE MARA-MATNR,
+*          LABST LIKE MARD-LABST,
+*          LGORT LIKE MARD-LGORT,
+*          WERKS LIKE MARD-WERKS,
+*        END OF GT_STOC,
+*        BEGIN OF GT_STOCKCC OCCURS 0,
+*          MATNR LIKE MARA-MATNR,
+*          LABST LIKE MARD-LABST,
+*          LGORT LIKE MARD-LGORT,
+*          WERKS LIKE MARD-WERKS,
+*        END OF GT_STOCKCC.
+*
+*  DATA: BEGIN OF GT_WERKS OCCURS 0,
+*          MATNR LIKE MARA-MATNR,
+*          WERKS LIKE MARC-WERKS,
+*        END OF GT_WERKS,
+*
+*        BEGIN OF GT_FORE OCCURS 0,
+*          MATNR      LIKE MARA-MATNR,
+*          WERKS      LIKE MARC-WERKS,
+*          LGORT      LIKE MARD-LGORT,
+*          STOCK_3052 LIKE MARD-LABST,
+*          STOCK_1060 LIKE MARD-LABST,
+*          STOCK_2051 LIKE MARD-LABST,
+*          STOCK_106A LIKE MARD-LABST,
+*          STOCK_205A LIKE MARD-LABST,
+*
+*        END OF GT_FORE.
+*
+**    Start of commented code by TMC-Faheem on 25.01.2016
+*  SELECT MARA~MATNR  FROM MARA
+*    INNER JOIN MARC ON MARA~MATNR = MARC~MATNR
+*     INTO CORRESPONDING FIELDS OF TABLE ITAB WHERE MARA~MATNR IN MATERIAL AND WERKS IN PLANT.
+*  ITAB1[] = ITAB[].
+*
+*  LOOP AT ITAB.
+*    SHIFT ITAB-MATNR LEFT DELETING LEADING '0'.
+*    MODIFY ITAB TRANSPORTING MATNR.
+*  ENDLOOP.
+*
+*
+** Get planing
+*  SELECT ZSALES_FC~MATNR ZSALES_FC~REGION ZSALES_FC~PLNMG ZSALES_FC~LGORT FROM ZSALES_FC
+*    "INNER JOIN marc on marc~matnr = zsales_fc~matnr
+*    INTO CORRESPONDING FIELDS OF TABLE GT_FORECAST
+*    FOR ALL ENTRIES IN ITAB
+*    WHERE ZSALES_FC~MATNR EQ ITAB-MATNR AND
+*          REGION IN REGION AND
+*          FROM_DT EQ FROM_DT AND LGORT IN LGORT." and  TO_Dt le TO_DATE. "From_Dt and  to_dt BETWEEN  From_Dt and to_date.
+**    End of commented code by TMC-Faheem on 25.01.2016
+*
+*  DATA: MATNR TYPE MATNR.
+*  LOOP AT GT_FORECAST.
+*    LOOP AT ITAB WHERE MATNR = GT_FORECAST-MATNR.
+*
+*      LOOP AT ITAB1.
+*        MATNR = ITAB1-MATNR.
+*        SHIFT MATNR LEFT DELETING LEADING '0'.
+*        IF MATNR = ITAB-MATNR.
+*          GT_FORECAST-MATNR = ITAB1-MATNR.
+*          MODIFY GT_FORECAST TRANSPORTING MATNR.
+*        ENDIF.
+*      ENDLOOP.
+*    ENDLOOP.
+*
+*  ENDLOOP.
+*
+*
+*  LOOP AT GT_FORECAST.
+*    SELECT SINGLE WERKS  FROM T001L INTO (GT_FORECAST-WERKS) WHERE LGORT = GT_FORECAST-LGORT.
+*    MODIFY GT_FORECAST TRANSPORTING WERKS.
+*  ENDLOOP.
+*
+*  SELECT MATNR LABST LGORT WERKS
+*    FROM MARD INTO TABLE GT_STOCKC
+*    FOR ALL ENTRIES IN GT_FORECAST
+*       WHERE MATNR =  GT_FORECAST-MATNR AND LGORT = GT_FORECAST-LGORT AND WERKS IN PLANT." AND
+*
+*  SELECT MATNR LABST LGORT WERKS
+* FROM MARD INTO TABLE GT_STOC
+* FOR ALL ENTRIES IN GT_FORECAST
+*    WHERE MATNR =  GT_FORECAST-MATNR AND LGORT IN ('3052' ,'1060' , '2051', '106A', '205A' )." and werks in plant.
+*
+**             werks IN Plant.
+*
+*  SORT GT_FORECAST BY MATNR." WERKS.
+*  DELETE ADJACENT DUPLICATES FROM GT_FORECAST COMPARING ALL FIELDS." WERKS.
+*
+*
+*  LOOP AT GT_STOC.
+*    GT_FORE-MATNR = GT_STOC-MATNR.
+*    GT_FORE-LGORT = GT_STOC-LGORT.
+*
+*    AT END OF WERKS.
+*      IF GT_STOC-LGORT = '3052'.
+*        GT_FORE-STOCK_3052 = GT_STOC-LABST.
+*      ELSEIF GT_STOC-LGORT = '1060'.
+*        GT_FORE-STOCK_1060 = GT_STOC-LABST.
+*      ELSEIF GT_STOC-LGORT = '2051'.
+*        GT_FORE-STOCK_2051 = GT_STOC-LABST.
+*      ELSEIF GT_STOC-LGORT = '106A'.
+*        GT_FORE-STOCK_106A = GT_STOC-LABST.
+*      ELSEIF GT_STOC-LGORT = '205A'.
+*        GT_FORE-STOCK_205A = GT_STOC-LABST.
+*      ENDIF.
+*      COLLECT GT_FORE.
+*    ENDAT.
+*  ENDLOOP.
+*
+**  SELECT MATNR RESWK WERKS EKPO~LGORT EKPO~EBELN EKPO~EBELP EKPO~MENGE
+**         INTO CORRESPONDING FIELDS OF TABLE ST
+**         FROM ( EKKO INNER JOIN EKPO ON
+**                EKKO~EBELN = EKPO~EBELN
+**              )
+**              INNER JOIN EKET
+**              ON  EKPO~EBELN = EKET~EBELN
+**              AND EKPO~EBELP = EKET~EBELP
+**         FOR ALL ENTRIES IN GT_FORECAST
+**         WHERE MATNR EQ GT_FORECAST-MATNR
+**         AND EKPO~WERKS EQ GT_FORECAST-WERKS
+**         AND EKPO~LOEKZ EQ ''
+**         AND EKPO~BSTYP IN ('F', 'L')
+**         AND RESWK <> SPACE
+**         AND EKET~WAMNG <> EKET~WEMNG
+**         AND LGORT = GT_FORECAST-LGORT.
+*
+*  DATA: MENG LIKE EKET-MENGE.
+*  ST1[] = ST[].
+*  SORT ST1 BY MATNR WERKS LGORT.
+*  DELETE ADJACENT DUPLICATES FROM ST1 COMPARING  MATNR WERKS LGORT.
+*
+*  LOOP AT ST.
+*
+*    WA_ST-MATNR = ST-MATNR.
+*    WA_ST-WERKS = ST-WERKS.
+*    WA_ST-LGORT = ST-LGORT.
+*    WA_ST-MENGE = ST-MENGE.
+*    COLLECT WA_ST INTO LT_ST.
+*    CLEAR: WA_ST.
+*  ENDLOOP.
+*
+*  LOOP AT ST1.
+**      BOC by TMC-Faheem on 25.01.2016
+*    READ TABLE LT_ST ASSIGNING <FS_ST> WITH KEY MATNR = ST1-MATNR
+*                                                WERKS = ST1-WERKS
+*                                                LGORT = ST1-LGORT.
+*    IF SY-SUBRC EQ 0.
+*      ST1-MENGE = <FS_ST>-MENGE.
+*      MODIFY ST1 TRANSPORTING MENGE.
+*    ENDIF.
+*  ENDLOOP.
+*
+*  SORT ST1 BY MATNR WERKS LGORT.
+*  DELETE ADJACENT DUPLICATES FROM ST1 COMPARING  MATNR WERKS LGORT.
+*
+*  DATA: LABST TYPE LABST.
+*
+*  GT_STOCKCC[] = GT_STOCKC[].
+*  DELETE ADJACENT DUPLICATES FROM GT_STOCKCC COMPARING MATNR WERKS LGORT.
+*
+*  DATA: LAS TYPE LABST.
+*
+*  SORT GT_STOCKCC BY MATNR WERKS LGORT.
+*  SORT GT_STOCKC BY MATNR WERKS LGORT.
+*
+*  LOOP AT GT_STOCKC.
+*    WA_STOCKC-MATNR = GT_STOCKC-MATNR.
+*    WA_STOCKC-WERKS = GT_STOCKC-WERKS.
+*    WA_STOCKC-LGORT = GT_STOCKC-LGORT.
+*    WA_STOCKC-LABST = GT_STOCKC-LABST.
+*    COLLECT WA_STOCKC INTO LT_STOCKC.
+*  ENDLOOP.
+*
+*  SORT LT_STOCKC BY MATNR WERKS LGORT.
+*
+*  LOOP AT GT_STOCKCC.
+**      BOC by TMC-Faheem on 25.01.2016
+*    READ TABLE LT_STOCKC ASSIGNING <FS_STOCKC> WITH KEY MATNR = GT_STOCKCC-MATNR
+*                                                        WERKS = GT_STOCKCC-WERKS
+*                                                        LGORT = GT_STOCKCC-LGORT
+*                                                        BINARY SEARCH.
+*    IF SY-SUBRC EQ 0.
+*      GT_STOCKCC-LABST = <FS_STOCKC>-LABST.
+*      MODIFY GT_STOCKCC TRANSPORTING LABST.
+*    ENDIF.
+*  ENDLOOP.
+*
+*
+*  SORT GT_STOCKCC BY MATNR WERKS LGORT.
+*  SORT GT_FORECAST BY MATNR WERKS LGORT.
+*
+*
+*  LOOP AT GT_FORECAST ASSIGNING <FS_FORECAST>.
+*    READ TABLE LT_STOCKC ASSIGNING <FS_STOCKC> WITH KEY MATNR = <FS_FORECAST>-MATNR
+*                                                        WERKS = <FS_FORECAST>-WERKS
+*                                                        LGORT = <FS_FORECAST>-LGORT
+*                                                        BINARY SEARCH.
+*    IF SY-SUBRC EQ 0.
+*      <FS_FORECAST>-LABST = <FS_STOCKC>-LABST.
+*    ENDIF.
+*    GT_FINAL-MATNR = <FS_FORECAST>-MATNR.
+*    GT_FINAL-REGIO = <FS_FORECAST>-REGION.
+*    GT_FINAL-LGORT = <FS_FORECAST>-LGORT.
+*    GT_FINAL-LABST = <FS_FORECAST>-LABST.
+*    GT_FINAL-PLNMG = <FS_FORECAST>-PLNMG .
+*
+*    APPEND GT_FINAL.
+*  ENDLOOP.
+*
+*  SELECT LIPS~VBELN  LIPS~POSNR LIKP~WADAT_IST LIKP~KUNNR LIKP~KUNAG LIPS~VGBEL LIPS~LGORT
+*            LIPS~UECHA LIPS~MATNR LIPS~LFIMG LIPS~WERKS LIPS~CHARG
+*            KNVV~BZIRK AS REGIO
+*     APPENDING CORRESPONDING FIELDS OF TABLE GT_MAIN FROM LIKP
+*     INNER JOIN LIPS ON
+*     LIKP~VBELN = LIPS~VBELN
+*     INNER JOIN VBAP ON
+*     LIPS~VGBEL = VBAP~VBELN AND
+*     LIPS~VGPOS = VBAP~POSNR
+*     INNER JOIN VBAK ON
+*     VBAK~VBELN = VBAP~VBELN
+*     INNER JOIN KNVV ON
+*     KNVV~VKORG = VBAK~VKORG AND
+*     KNVV~VTWEG = VBAK~VTWEG AND
+*     KNVV~SPART = VBAK~SPART AND
+*     KNVV~KUNNR = VBAK~KUNNR
+*     INNER JOIN KNA1 ON
+*     KNA1~KUNNR = VBAK~KUNNR
+*     WHERE
+*
+*           LIPS~WERKS IN PLANT AND
+*           LIPS~MATNR IN MATERIAL AND
+*           LIPS~LGORT IN LGORT AND
+*           WADAT_IST  >= FROM_DT AND WADAT_IST =< TO_DATE AND
+*           LIPS~LFIMG NE 0.
+*
+*  SORT GT_MAIN BY VBELN MATNR.
+*
+*  LOOP AT GT_FINAL.
+*    LOOP AT GT_MAIN WHERE MATNR EQ GT_FINAL-MATNR AND LGORT EQ GT_FINAL-LGORT.
+*      GT_MAINNNN-MATNR = GT_MAIN-MATNR.
+*      GT_MAINNNN-LGORT = GT_MAIN-LGORT.
+*      GT_MAINNNN-LFIMG = GT_MAIN-LFIMG.
+*      COLLECT GT_MAINNNN.
+*    ENDLOOP.
+*  ENDLOOP.
+*
+*
+*  LOOP AT GT_FINAL.
+*    LOOP AT GT_MAINNNN WHERE MATNR EQ GT_FINAL-MATNR AND LGORT EQ GT_FINAL-LGORT.
+*      GT_FINAL-LFIMG =  GT_MAINNNN-LFIMG.
+*      MODIFY GT_FINAL TRANSPORTING LFIMG.
+*    ENDLOOP.
+*  ENDLOOP.
+*
+*
+*  .
+*
+*  LOOP AT GT_FINAL.
+*    SELECT SINGLE MTART MATKL FROM MARA INTO (GT_FINAL-MTART, GT_FINAL-MATKL) WHERE MATNR = GT_FINAL-MATNR.
+*    SELECT SINGLE MAKTX FROM MAKT INTO GT_FINAL-MAKTX WHERE MATNR = GT_FINAL-MATNR AND SPRAS = 'EN'.
+**  SELECT SINGLE bezei FROM T005U INTO gt_final-bezei WHERE bland = gt_final-regio and spras = 'EN'.
+*    SELECT  SINGLE BZTXT FROM  T171T INTO GT_FINAL-BEZEI WHERE BZIRK = GT_FINAL-REGIO AND SPRAS = 'EN'.
+*    MODIFY GT_FINAL TRANSPORTING MAKTX BEZEI MTART MATKL.
+**
+*  ENDLOOP.
+*
+*  LOOP AT GT_FINAL.
+*    SUM =  GT_FINAL-LABST + GT_FINAL-LFIMG.   " gt_final-menge +
+*
+*
+*
+*    IF TO_DATE+6(2) >= 20.
+*      IF ( SUM < GT_FINAL-PLNMG ) .
+*        GT_FINAL-CONN = 'False'.
+*      ELSE.
+*        GT_FINAL-CONN = 'True'.
+*      ENDIF.
+*    ELSE.
+*      PER = GT_FINAL-PLNMG * 50 / 100 .
+*      IF ( SUM < PER ).
+*        GT_FINAL-CONN = 'False'.
+*      ELSE.
+*        GT_FINAL-CONN = 'True'.
+*      ENDIF.
+*    ENDIF.
+*
+*    MODIFY GT_FINAL TRANSPORTING CON CONN.
+*
+*
+*    CLEAR: SUM, PER.
+*  ENDLOOP.
+*
+*  LOOP AT GT_FINAL.
+*    CLEAR UMREZ.
+*    SELECT SINGLE UMREZ FROM MARM INTO UMREZ WHERE MATNR = GT_FINAL-MATNR AND MEINH = 'KAR'.
+**    IF sy-subrc EQ 0.
+******** BOC ZUBAIR AHMED KHAN 20200423
+*    IF P_RAD1 EQ '1'.
+*      UMREZ = 1.
+*    ENDIF.
+******** EOC ZUBAIR AHMED KHAN 20200423
+*    IF UMREZ NE 0.
+*      GT_FINAL-PLNMG = GT_FINAL-PLNMG / UMREZ.
+*      GT_FINAL-LFIMG = GT_FINAL-LFIMG / UMREZ.
+*      GT_FINAL-LABST = GT_FINAL-LABST / UMREZ.
+*      GT_FINAL-MENGE = GT_FINAL-MENGE / UMREZ.
+*      MODIFY GT_FINAL TRANSPORTING PLNMG LFIMG LABST MENGE.
+*    ENDIF.
+*  ENDLOOP.
+*
+*  LOOP AT GT_FINAL.
+*    GT_FINAL-SAL = GT_FINAL-PLNMG - GT_FINAL-LFIMG.
+*    PER    = GT_FINAL-LFIMG + GT_FINAL-NET .
+*    IF GT_FINAL-PLNMG NE 0.
+*      GT_FINAL-PER = ( PER / GT_FINAL-PLNMG ) * 100.
+*    ENDIF.
+*    IF GT_FINAL-PER >= 50.
+*      GT_FINAL-STATUS = 'True'.
+*    ELSE.
+*      GT_FINAL-STATUS = 'False'.
+*    ENDIF.
+*    MODIFY GT_FINAL TRANSPORTING STATUS SAL PER.
+*    CLEAR PER.
+*  ENDLOOP.
+*
+*  LOOP AT GT_FINAL.
+*    GT_FINAL-INVENT = GT_FINAL-PLNMG * '0.5'.
+*    GT_FINAL-NET = GT_FINAL-LABST + GT_FINAL-MENGE.
+*    GT_FINAL-REQ_FC = GT_FINAL-PLNMG - GT_FINAL-LFIMG - GT_FINAL-NET.
+*
+*    MODIFY GT_FINAL TRANSPORTING INVENT NET REQ_FC STOCK_1060 STOCK_2051 STOCK_3052.
+*  ENDLOOP.
+*
+*  LOOP AT GT_FINAL.
+*
+*    SELECT SINGLE MTBEZ FROM T134T INTO GT_FINAL-MTBEZ WHERE MTART = GT_FINAL-MTART AND SPRAS = 'EN'.
+*    SELECT SINGLE WGBEZ FROM T023T INTO GT_FINAL-WGBEZ WHERE MATKL = GT_FINAL-MATKL AND SPRAS = 'EN'.
+*
+*    SELECT SINGLE LGOBE WERKS  FROM T001L INTO (GT_FINAL-LGOBE, GT_FINAL-WERKS) WHERE LGORT = GT_FINAL-LGORT." AND werks = gt_final-werks.
+*    SELECT SINGLE NAME1 FROM T001W INTO GT_FINAL-NAME1 WHERE WERKS = GT_FINAL-WERKS.
+*    MODIFY GT_FINAL TRANSPORTING MTBEZ WGBEZ NAME1 LGOBE WERKS.
+*
+*  ENDLOOP.
+*  DATA: COUNT TYPE I.
+*
+*
+*  LOOP AT GT_FINAL.
+*
+*    LOOP AT ST1 WHERE MATNR EQ GT_FINAL-MATNR AND LGORT EQ GT_FINAL-LGORT AND WERKS EQ GT_FINAL-WERKS.
+*
+*      GT_FINAL-MENGE =  ST1-MENGE.
+*      MODIFY GT_FINAL TRANSPORTING MENGE.
+*    ENDLOOP.
+*
+*  ENDLOOP.
+*
+*  LOOP AT GT_FINAL.
+*
+*    LOOP AT  GT_FORE WHERE MATNR = GT_FINAL-MATNR." and werks = gt_final-werks.
+*
+*      IF GT_FORE-LGORT = '1060'." and count > 0.
+*        GT_FINAL-STOCK_1060 = GT_FORE-STOCK_1060 / UMREZ.
+*
+*        MODIFY GT_FINAL TRANSPORTING  STOCK_1060 .
+*      ELSEIF GT_FORE-LGORT = '2051'." and count > 0.
+*        GT_FINAL-STOCK_2051 = GT_FORE-STOCK_2051 / UMREZ.
+*
+*        MODIFY GT_FINAL TRANSPORTING  STOCK_2051 .
+*      ELSEIF GT_FORE-LGORT = '3052' ."and count > 0.
+*        GT_FINAL-STOCK_3052 = GT_FORE-STOCK_3052 / UMREZ.
+*
+*        MODIFY GT_FINAL TRANSPORTING   STOCK_3052.
+*
+*      ELSEIF GT_FORE-LGORT = '106A' .
+*        GT_FINAL-STOCK_106A = GT_FORE-STOCK_106A / UMREZ.
+*
+*        MODIFY GT_FINAL TRANSPORTING   STOCK_106A.
+*
+*      ELSEIF GT_FORE-LGORT = '205A' .
+*        GT_FINAL-STOCK_205A = GT_FORE-STOCK_205A / UMREZ.
+*
+*        MODIFY GT_FINAL TRANSPORTING   STOCK_205A.
+*      ENDIF..
+*
+**count = count + 1.
+*
+*    ENDLOOP.
+*
+*  ENDLOOP.
+*
+*ENDFORM.                    "get_data
+
+*&---------------------------------------------------------------------*
+*&      Form  display
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM DISPLAY.
+
+  GT_FINAL2[] = GT_FINAL[].
+  SORT GT_FINAL2 BY MATNR WERKS.
+  DELETE ADJACENT DUPLICATES FROM GT_FINAL2 COMPARING ALL FIELDS.
+
+  LOOP AT GT_FINAL.
+    IF GT_FINAL-PLNMG <> 0.
+      GT_FINAL-PERA = ( GT_FINAL-LFIMG ) / GT_FINAL-PLNMG .
+      GT_FINAL-PERA = GT_FINAL-PERA * 100.
+
+      MODIFY GT_FINAL TRANSPORTING PERA.
+    ELSE.
+      GT_FINAL-PERA = 0.
+
+      MODIFY GT_FINAL TRANSPORTING PERA.
+    ENDIF.
+
+  ENDLOOP.
+
+
+
+  SORT GT_FINAL BY MATNR WERKS.
+  DELETE ADJACENT DUPLICATES FROM GT_FINAL COMPARING ALL FIELDS.
+  LOOP AT GT_FINAL.
+
+    READ TABLE GT_Q2  WITH KEY   MATNR = GT_FINAL-MATNR.
+
+
+    GT_FINAL-PLANT_1000 = GT_Q2-PLANT_1000.
+    GT_FINAL-PLANT_2000 = GT_Q2-PLANT_2000.
+    GT_FINAL-PLANT_2500 = GT_Q2-PLANT_2500.
+    GT_FINAL-PLANT_3000 = GT_Q2-PLANT_3000.
+    GT_FINAL-PLANT_5000 = GT_Q2-PLANT_5000.
+    GT_FINAL-PLANT_5500 = GT_Q2-PLANT_5500.
+    GT_FINAL-PLANT_6000 = GT_Q2-PLANT_6000.
+    GT_FINAL-PLANT_7000 = GT_Q2-PLANT_7000.
+    GT_FINAL-PLANT_8000 = GT_Q2-PLANT_8000.
+    GT_FINAL-PLANT_9000 = GT_Q2-PLANT_9000.
+
+******* BOC ZUBAIR AHMED KHAN 20200423
+    IF GT_FINAL-PLNMG NE 0.
+      GT_FINAL-STK_WOT = ( ( GT_FINAL-LABST + GT_FINAL-LFIMG ) / GT_FINAL-PLNMG ).
+      GT_FINAL-STK_WOTP = GT_FINAL-STK_WOT * 100.
+      GT_FINAL-STK_WT = ( ( GT_FINAL-LABST + GT_FINAL-LFIMG + GT_FINAL-MENGE ) / GT_FINAL-PLNMG ).
+      GT_FINAL-STK_WTP = GT_FINAL-STK_WT * 100.
+
+      GT_FINAL-STK_COV_WT = ( ( GT_FINAL-LABST + GT_FINAL-LFIMG + GT_FINAL-MENGE + GT_FINAL-MENGE_PSTO ) / GT_FINAL-PLNMG ).
+      GT_FINAL-STK_COV_WTP = GT_FINAL-STK_COV_WT * 100.
+*    ELSE.
+
+    ENDIF.
+
+    SELECT SUM( VBBE~OMENG ) FROM VBBE INTO GT_FINAL-OMENG1
+    WHERE MATNR = GT_FINAL-MATNR AND WERKS = GT_FINAL-WERKS AND LGORT = GT_FINAL-LGORT AND VBTYP = 'J' .
+
+    SELECT SUM( VBBS~OMENG ) FROM VBBS INTO GT_FINAL-OMENG2
+        WHERE MATNR = GT_FINAL-MATNR AND WERKS = GT_FINAL-WERKS AND LGORT = GT_FINAL-LGORT AND VBTYP = 'J' .
+
+    GT_FINAL-OMENG = GT_FINAL-OMENG1 + GT_FINAL-OMENG2.
+    IF P_RAD2 EQ 'X'.
+      SELECT SINGLE UMREZ FROM MARM INTO UMREZ WHERE MATNR = GT_FINAL-MATNR AND MEINH = 'KAR'.
+      GT_FINAL-OMENG = GT_FINAL-OMENG / UMREZ.
+      CLEAR: UMREZ.
+    ENDIF.
+    GT_FINAL-NETSTOCK = ( GT_FINAL-LABST - GT_FINAL-OMENG ).
+******* EOC ZUBAIR AHMED KHAN 20200423
+    MODIFY GT_FINAL.
+    CLEAR
+    GT_FINAL-PLANT_1000.
+    CLEAR
+   GT_FINAL-PLANT_2000.
+    CLEAR
+    GT_FINAL-PLANT_2500 .
+    CLEAR
+    GT_FINAL-PLANT_3000.
+    CLEAR
+    GT_FINAL-PLANT_5000 .
+    CLEAR
+    GT_FINAL-PLANT_5500 .
+    CLEAR
+    GT_FINAL-PLANT_6000 .
+    CLEAR
+    GT_FINAL-PLANT_7000 .
+    CLEAR
+    GT_FINAL-PLANT_8000 .
+    CLEAR
+    GT_FINAL-PLANT_9000 .
+    CLEAR GT_Q2-PLANT_1000.
+    CLEAR GT_Q2-PLANT_2000.
+    CLEAR GT_Q2-PLANT_2500.
+    CLEAR GT_Q2-PLANT_3000.
+    CLEAR GT_Q2-PLANT_5000.
+    CLEAR GT_Q2-PLANT_5500.
+    CLEAR GT_Q2-PLANT_6000.
+    CLEAR GT_Q2-PLANT_7000.
+    CLEAR GT_Q2-PLANT_8000.
+    CLEAR GT_Q2-PLANT_9000.
+
+
+
+
+
+
+  ENDLOOP.
+
+*
+*
+*modify GT_FINAL .
+*  ENDLOOP.
+*
+
+  PERFORM FILL_FIELDCAT USING 'MATNR' 13 'Material' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'MAKTX' 13 'Material Description' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'MTART' 13 'Material Type' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'WGBEZ' 13 'Material Group Desc.' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'LGOBE' 13 'SLoc Desc.' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'MTBEZ' 13 'Material Type Desc.' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'WERKS' 13 'Plant' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'NAME1' 13 'Plant Desc.' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'BEZEI' 13 'Region' 'GT_FINAL'.
+*  IF P_RAD1 EQ 'X'.                                                                        "For Units Radio Button Selected
+  PERFORM FILL_FIELDCAT USING 'PLNMG' 13 'Frc.Qty' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'LABST' 13 'Current Stock' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'MENGE' 13 'Stock In Transit To SL' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'LFIMG' 13 'Del. QTY' 'GT_FINAL'.
+*  ENDIF.
+  PERFORM FILL_FIELDCAT USING 'LGORT' 13 'Storage Location' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'CONN' 13 'Status' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PER' 13 'Avail V/s Time gone' 'GT_FINAL'.
+*  IF P_RAD2 EQ 'X'.                                                                        "For Carton Radio Button Selected
+*    PERFORM FILL_FIELDCAT USING 'PLNMG' 13 'Frc.Qty in Cartons' 'GT_FINAL'.
+*    PERFORM FILL_FIELDCAT USING 'LABST' 13 'Current Stock in Cartons' 'GT_FINAL'.
+*    PERFORM FILL_FIELDCAT USING 'MENGE' 13 'Stock In Transit in Cartons' 'GT_FINAL'.
+*    PERFORM FILL_FIELDCAT USING 'LFIMG' 13 'Del. QTY in Cartons' 'GT_FINAL'.
+*  ENDIF.
+  PERFORM FILL_FIELDCAT USING 'STATUS' 13 'Status2' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'SAL' 13 'Remaining Sales vs FC' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STOCK_3052' 13 'Stock at 3052' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STOCK_1060 ' 13 'Stock at 1060' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STOCK_2051' 13 'Stock at 2051' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STOCK_2004' 13 'Stock at 2004' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STOCK_2055 ' 13 'Stock at 2055' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STOCK_2050' 13 'Stock at 2050' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STOCK_106A' 13 'Stock at Agility Site 106A' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STOCK_205A' 13 'Stock at Agility PQ 205A' 'GT_FINAL'.
+
+  PERFORM FILL_FIELDCAT USING 'PLANT_1000 ' 13 'Quality Stock @ Plant_1000'   'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PLANT_2000 ' 13 'Quality Stock @ Plant_2000'   'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PLANT_2500 ' 13 'Quality Stock @ Plant_2500'   'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PLANT_3000 ' 13 'Quality Stock @ Plant_3000'   'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PLANT_5000 ' 13 'Quality Stock @ Plant_5000'   'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PLANT_5500 ' 13 'Quality Stock @ Plant_5500'   'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PLANT_6000 ' 13 'Quality Stock @ Plant_6000'   'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PLANT_7000 ' 13 'Quality Stock @ Plant_7000'   'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PLANT_8000 ' 13 'Quality Stock @ Plant_8000'   'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PLANT_9000 ' 13 'Quality Stock @ Plant_9000'   'GT_FINAL'.
+
+  PERFORM FILL_FIELDCAT USING 'REQ_FC' 13 'Req. for completion of FC' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'NET' 13 'Total(Avail + Transit)' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'INVENT' 13 'Inventory(15 Days)' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'PERA' 13 'Percentage Achievement' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'KBETR' 13 'Trade Price' 'GT_FINAL'.
+******* BOC ZUBAIR AHMED KHAN 20200423
+*  PERFORM FILL_FIELDCAT USING 'STK_WOT' 13 'Stock Coverage w\o Transit' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STK_WOTP' 13 'Stock Coverage w\o Transit(%)' 'GT_FINAL'.
+*  PERFORM FILL_FIELDCAT USING 'STK_WT' 13 'Stock Coverage w\ Transit' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STK_WTP' 13 'Stock Coverage w\ Transit(%)' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'OMENG' 13 'Sched for Delv. FROM SL' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'NETSTOCK' 13 'Net Stock' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'MENGE_PSTO' 13 'Sched Delv. To SL' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'MENGE_OSTO' 13 'Open STO' 'GT_FINAL'.
+
+*  PERFORM FILL_FIELDCAT USING 'STK_COV_WT' 13 'Stock Coverage w\ Transit + sched del' 'GT_FINAL'.
+  PERFORM FILL_FIELDCAT USING 'STK_COV_WTP' 13 'Stock Coverage w\ Transit + Sched Del % ' 'GT_FINAL'.
+******* EOC ZUBAIR AHMED KHAN 20200423
+
+  PERFORM ADD_HEADING_ALV USING C_ALV_HEAD_HEADER '' 'National Foods Limited'.
+  PERFORM ADD_HEADING_ALV USING C_ALV_HEAD_SELECTION '' 'Production & Sales Against Sales Forecast'.
+  PERFORM DISPLAY_ALV USING GT_FINAL[].
+ENDFORM.                    "display

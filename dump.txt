@@ -1,0 +1,178 @@
+
+
+REPORT yshail_smartform1_new . 
+TABLES: zshail_t1,sflight. 
+DATA: cparam TYPE ssfctrlop, 
+      outop TYPE ssfcompop, 
+      fm_name TYPE rs38l_fnam, 
+      my_tabix TYPE sy-tabix, 
+      file_size TYPE i, 
+      bin_filesize TYPE i. 
+DATA: tab_otf_data TYPE ssfcrescl, 
+      pdf_tab LIKE tline OCCURS 0 WITH HEADER LINE, 
+      itab LIKE TABLE OF zshail_t1 WITH HEADER LINE, 
+      otab TYPE TABLE OF sflight WITH HEADER LINE, 
+      tab_otf_final TYPE itcoo OCCURS 0 WITH HEADER LINE. 
+start-of-selection. 
+***************** suppressing the dialog box**************************** 
+outop-tddest = 'LP01'. cparam-no_dialog = 'X'. cparam-preview = space. cparam-getotf = 'X'. 
+******for first smartform*************************************** 
+CALL FUNCTION 'SSF_FUNCTION_MODULE_NAME' 
+EXPORTING formname = 'ZSHAIL_SMFORM2' 
+* VARIANT = ' ' 
+* DIRECT_CALL = ' ' 
+IMPORTING 
+  fm_name = fm_name 
+  EXCEPTIONS 
+    no_form = 1 
+    no_function_module = 2 
+    OTHERS = 3 . 
+IF sy-subrc 0. 
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO 
+* WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4. 
+  ENDIF. 
+
+  SELECT my_id my_income my_name 
+    FROM zshail_t1 INTO TABLE itab. 
+
+    CALL FUNCTION fm_name 
+EXPORTING 
+* ARCHIVE_INDEX =
+* ARCHIVE_INDEX_TAB = 
+* ARCHIVE_PARAMETERS = 
+control_parameters = cparam 
+* MAIL_APPL_OBJ = 
+* MAIL_RECIPIENT = 
+* MAIL_SENDER = 
+output_options = outop 
+user_settings = space 
+IMPORTING 
+* DOCUMENT_OUTPUT_INFO = 
+job_output_info = tab_otf_data 
+* JOB_OUTPUT_OPTIONS = 
+TABLES 
+it_tab = itab[] 
+  EXCEPTIONS 
+    formatting_error = 1 
+    internal_error = 2 
+    send_error = 3 
+    user_canceled = 4 
+    OTHERS = 5 . 
+    IF sy-subrc 0. 
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO 
+* WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4. 
+      ENDIF. 
+*********appending the otf data into the final table********************* 
+      tab_otf_final[] = tab_otf_data-otfdata[]. 
+*************for the second smartform************************************ 
+      CALL FUNCTION 'SSF_FUNCTION_MODULE_NAME' 
+      EXPORTING 
+        formname = 'ZSHAIL_SMTAB' 
+*        * VARIANT = ' ' 
+*        * DIRECT_CALL = ' ' 
+        IMPORTING 
+          fm_name = fm_name 
+          EXCEPTIONS 
+            no_form = 1 
+            no_function_module = 2 
+            OTHERS = 3 . 
+      IF sy-subrc 0. 
+*        * MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO 
+*        * WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4. 
+        ENDIF. 
+
+        SELECT carrid connid fldate price FROM sflight 
+INTO CORRESPONDING FIELDS OF TABLE otab. 
+          
+CALL FUNCTION fm_name 
+          EXPORTING 
+*            * ARCHIVE_INDEX = 
+*            * ARCHIVE_INDEX_TAB = 
+*            * ARCHIVE_PARAMETERS = 
+            control_parameters = cparam 
+*            * MAIL_APPL_OBJ = 
+*            * MAIL_RECIPIENT = 
+*            * MAIL_SENDER = 
+            output_options = outop 
+            user_settings = space 
+            IMPORTING 
+*              * DOCUMENT_OUTPUT_INFO = 
+              job_output_info = tab_otf_data 
+*              * JOB_OUTPUT_OPTIONS = 
+              TABLES 
+                itab = otab[] 
+                EXCEPTIONS 
+                  formatting_error = 1 
+                  internal_error = 2 
+                  send_error = 3 
+                  user_canceled = 4 
+                  OTHERS = 5 . 
+          IF sy-subrc 0. 
+*            * MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO 
+*            * WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4. 
+            ENDIF. 
+*            **removing the initial and final markers from the OTF data********* 
+            DELETE tab_otf_data-otfdata WHERE tdprintcom = '//'. 
+*            ***************** searching for the end-of-page in OTF table************ 
+            READ TABLE tab_otf_final WITH KEY tdprintcom = 'EP'. 
+            my_tabix = sy-tabix + 1. 
+*            ************ appending the modified OTF table to the final OTF table**** 
+            INSERT LINES OF tab_otf_data-otfdata INTO tab_otf_final INDEX my_tabix. 
+*            ************ converting OTF data into pdf data************************** 
+                  CALL FUNCTION 'CONVERT_OTF' 
+                  EXPORTING 
+                    format = 'PDF' 
+                    max_linewidth = 132 
+*                    * ARCHIVE_INDEX = ' ' 
+*                    * COPYNUMBER = 0 
+*                    * ASCII_BIDI_VIS2LOG = ' ' 
+                    IMPORTING 
+                      bin_filesize = bin_filesize 
+*                      * BIN_FILE = 
+                      TABLES 
+                        otf = tab_otf_final 
+                        lines = pdf_tab 
+                        EXCEPTIONS 
+                          err_max_linewidth = 1 
+                          err_format = 2 
+                          err_conv_not_possible = 3 
+                          err_bad_otf = 4 OTHERS = 5 . 
+            IF sy-subrc 0. 
+*              * MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO 
+*              * WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4. 
+              ENDIF. 
+*              ************downloading the converted PDF data to your local PC******* 
+                    CALL FUNCTION 'GUI_DOWNLOAD' 
+                    EXPORTING 
+                      bin_filesize = bin_filesize 
+                      filename = 'D:TEST.PDF' 
+                      filetype = 'BIN' 
+                    IMPORTING 
+                      filelength = file_size 
+                      TABLES 
+                        data_tab = pdf_tab.
+
+
+
+
+*&------------------------------------------------------------------------------------------------------------------------------------------------*
+*                                                     Begin of Code Change by TMC Faryal Zaidi
+*&------------------------------------------------------------------------------------------------------------------------------------------------*
+     
+*&------------------------------------------------------------------------------------------------------------------------------------------------*
+*                                                       End of Code Change by TMC Faryal Zaidi
+*&------------------------------------------------------------------------------------------------------------------------------------------------*
+
+
+QM0123
+Zreminder
+TS99700043 RLR_AGENT   Read Leave request agent
+class: ZCL_SWF_NOTI_UTIL 
+method : READ_LF_APPROVER
+TMC.HCM 00000002 
+50000055
+ 
+USTMC.HCM
+X
+LR
+

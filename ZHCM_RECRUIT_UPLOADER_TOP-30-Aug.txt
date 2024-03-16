@@ -1,0 +1,439 @@
+*&---------------------------------------------------------------------*
+*& Include          ZHCM_RECRUIT_UPLOADER_TOP
+*&---------------------------------------------------------------------*
+TYPE-POOLS: truxs.
+
+DATA:
+*      gv_sent_to_all TYPE os_boolean,
+  gv_email      TYPE adr6-smtp_addr,  "variable for email
+  gv_subject    TYPE so_obj_des,       "to pass in create doc mehod
+*      gv_text        TYPE bcsy_text,         "a line type table type
+  ls            TYPE soli,                "line type struct
+  lt            TYPE TABLE OF soli,        " line type tab
+  send_request  TYPE REF TO cl_bcs, "object of class cl_bcs declaration
+  bcs_exception TYPE REF TO cx_bcs,    "to create instance of class first we have to declare a REF TO variable
+  recipient     TYPE REF TO if_recipient_bcs,
+  sender        TYPE REF TO cl_sapuser_bcs,
+  document      TYPE REF TO cl_document_bcs,  "object of class cl_document_bcs
+  lv_test_run   TYPE bapi_re_additional_fields-testrun.
+DATA:
+  ls_bapiaplorg TYPE bapiaplorg,
+  ls_bapiaplper	TYPE bapiaplper,
+*  ls_bapiaplorg TYPE bapiaplorg,
+  ls_bapiapladr TYPE bapiapladr,
+  ls_bapiapplic TYPE bapiapplic,
+*  ls_bapip0001  TYPE bapip0001,
+  ls_bapip0105b TYPE bapip0105b,
+  ls_bapihr0105 TYPE bapihr0105.
+
+DATA:
+  it_bapieduc   TYPE TABLE OF bapieduc, "TABLES PARAM
+  wa_bapieduc   TYPE bapieduc,
+  it_bapiemploy TYPE TABLE OF bapiemploy, "TABLES PARAM
+  wa_bapiemploy TYPE bapiemploy,
+  it_bapiquali  TYPE TABLE OF bapiquali, "TABLES PARAM
+  wa_bapiquali  TYPE bapiquali,
+  it_bapivacass TYPE TABLE OF bapivacass, "TABLES PARAM
+  wa_bapivacass TYPE bapivacass,
+  ls_return     TYPE bapireturn, "TABLES PARAM
+  ls_return2    TYPE bapiret2.
+
+TYPES: BEGIN OF it_tab,
+*         applicant_no        TYPE string,     "Applicant No"
+*//...   Personal Data Structure
+         title TYPE string,
+         first_name          TYPE string,     "First Name"
+         last_name           TYPE string,     "Last Name"
+         ssn                 TYPE string,
+         dob                 TYPE string,        "DOB
+       father_name           TYPE string,
+         gender              TYPE string,
+         nationality         TYPE string,
+         address             TYPE string,
+         address_block       TYPE string,
+         postal_code         TYPE string,
+         city                TYPE string,
+         advert              TYPE string,
+*//...   Addresses Data Structure
+         tele_no             TYPE string,     "Cell no"
+         cell_no TYPE string,
+*//...   Communications Table Data Structure
+         email               TYPE string,     "Email"
+         skype_id  TYPE string,
+
+*//...   Vacancy Assignment Data Structure
+         vacancy             TYPE string,     "Vacancy"
+
+*//...   Education Data Structure1
+         education_type      TYPE string,     "Sub Type for Education Type e.g. Primary, Secondary, University etc
+        certificate        TYPE string,
+        institute_country  TYPE string,
+         text_edu_inst       TYPE string,     "Text for Educational Institute"
+         edu_training_text   TYPE string,
+         from_date_edu       TYPE string,
+         to_date_edu         TYPE string,     "  End Date of Education"
+         cgpa                TYPE string,
+         years_of_edu        TYPE string,
+
+*         *//...   Education Data Structure2
+         education_type_2    TYPE string,     "Sub Type for Education Type e.g. Primary, Secondary, University etc
+        certificate_2       TYPE string,
+        institute_country_2 TYPE string,
+         text_edu_inst_2     TYPE string,     "Text for Educational Institute"
+         edu_training_text_2 TYPE string,
+         from_date_edu_2     TYPE string,
+         to_date_edu_2       TYPE string,     "  End Date of Education"
+         cgpa_2              TYPE string,
+         years_of_edu_2      TYPE string,
+*         *//...   Education Data Structure3
+         education_type_3    TYPE string,     "Sub Type for Education Type e.g. Primary, Secondary, University etc
+        certificate_3       TYPE string,
+        institute_country_3 TYPE string,
+         text_edu_inst_3     TYPE string,     "Text for Educational Institute"
+         edu_training_text_3 TYPE string,
+         from_date_edu_3     TYPE string,
+         to_date_edu_3       TYPE string,     "  End Date of Education"
+         cgpa_3              TYPE string,
+         years_of_edu_3      TYPE string,
+*         *//...   Education Data Structure4
+         education_type_4    TYPE string,     "Sub Type for Education Type e.g. Primary, Secondary, University etc
+        certificate_4       TYPE string,
+        institute_country_4 TYPE string,
+         text_edu_inst_4     TYPE string,     "Text for Educational Institute"
+         edu_training_text_4 TYPE string,
+         from_date_edu_4     TYPE string,
+         to_date_edu_4       TYPE string,     "  End Date of Education"
+         cgpa_4              TYPE string,
+         years_of_edu_4      TYPE string,
+*         *//...   Education Data Structure5
+         education_type_5    TYPE string,     "Sub Type for Education Type e.g. Primary, Secondary, University etc
+        certificate_5       TYPE string,
+        institute_country_5 TYPE string,
+         text_edu_inst_5     TYPE string,     "Text for Educational Institute"
+         edu_training_text_5 TYPE string,
+         from_date_edu_5     TYPE string,
+         to_date_edu_5       TYPE string,     "  End Date of Education"
+         cgpa_5              TYPE string,
+         years_of_edu_5      TYPE string,
+*         *//...   Education Data Structure6
+         education_type_6    TYPE string,     "Sub Type for Education Type e.g. Primary, Secondary, University etc
+        certificate_6       TYPE string,
+        institute_country_6 TYPE string,
+         text_edu_inst_6     TYPE string,     "Text for Educational Institute"
+         edu_training_text_6 TYPE string,
+         from_date_edu_6     TYPE string,
+         to_date_edu_6       TYPE string,     "  End Date of Education"
+         cgpa_6              TYPE string,
+         years_of_edu_6      TYPE string,
+*         *//...   Education Data Structure7
+         education_type_7    TYPE string,     "Sub Type for Education Type e.g. Primary, Secondary, University etc
+        certificate_7       TYPE string,
+        institute_country_7 TYPE string,
+         text_edu_inst_7     TYPE string,     "Text for Educational Institute"
+         edu_training_text_7 TYPE string,
+         from_date_edu_7     TYPE string,
+         to_date_edu_7       TYPE string,     "  End Date of Education"
+         cgpa_7              TYPE string,
+         years_of_edu_7      TYPE string,
+
+*//...   Previous Employer/Experience  Data Structure1
+         prev_emp_name       TYPE string,     "Previous Employer Name"
+        prev_emp_country_key TYPE string,
+         from_date_prev_job  TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job    TYPE string,     "End Date of Previous Job"
+         area_of_job         TYPE string,
+         designation         TYPE string,
+*//...   Previous Employer/Experience  Data Structure2
+         prev_emp_name_2       TYPE string,     "Previous Employer Name"
+        prev_emp_country_key_2 TYPE string,
+         from_date_prev_job_2  TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job_2    TYPE string,     "End Date of Previous Job"
+         area_of_job_2         TYPE string,
+         designation_2         TYPE string,
+*//...   Previous Employer/Experience  Data Structure3
+         prev_emp_name_3       TYPE string,     "Previous Employer Name"
+        prev_emp_country_key_3 TYPE string,
+         from_date_prev_job_3  TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job_3    TYPE string,     "End Date of Previous Job"
+         area_of_job_3         TYPE string,
+         designation_3         TYPE string,
+*//...   Previous Employer/Experience  Data Structure4
+         prev_emp_name_4       TYPE string,     "Previous Employer Name"
+        prev_emp_country_key_4 TYPE string,
+         from_date_prev_job_4  TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job_4    TYPE string,     "End Date of Previous Job"
+         area_of_job_4         TYPE string,
+         designation_4         TYPE string,
+*//...   Previous Employer/Experience  Data Structure5
+         prev_emp_name_5       TYPE string,     "Previous Employer Name"
+        prev_emp_country_key_5 TYPE string,
+         from_date_prev_job_5  TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job_5    TYPE string,     "End Date of Previous Job"
+         area_of_job_5         TYPE string,
+         designation_5         TYPE string,
+*//...   Previous Employer/Experience  Data Structure6
+         prev_emp_name_6       TYPE string,     "Previous Employer Name"
+        prev_emp_country_key_6 TYPE string,
+         from_date_prev_job_6  TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job_6    TYPE string,     "End Date of Previous Job"
+         area_of_job_6         TYPE string,
+         designation_6         TYPE string,
+*//...   Previous Employer/Experience  Data Structure7
+         prev_emp_name_7       TYPE string,     "Previous Employer Name"
+        prev_emp_country_key_7 TYPE string,
+         from_date_prev_job_7  TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job_7    TYPE string,     "End Date of Previous Job"
+         area_of_job_7         TYPE string,
+         designation_7         TYPE string,
+*//...   Previous Employer/Experience  Data Structure8
+         prev_emp_name_8       TYPE string,     "Previous Employer Name"
+        prev_emp_country_key_8 TYPE string,
+         from_date_prev_job_8  TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job_8    TYPE string,     "End Date of Previous Job"
+         area_of_job_8         TYPE string,
+         designation_8         TYPE string,
+*//...   Previous Employer/Experience  Data Structure9
+         prev_emp_name_9       TYPE string,     "Previous Employer Name"
+        prev_emp_country_key_9 TYPE string,
+         from_date_prev_job_9  TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job_9    TYPE string,     "End Date of Previous Job"
+         area_of_job_9         TYPE string,
+         designation_9         TYPE string,
+*//...   Previous Employer/Experience  Data Structure10
+         prev_emp_name_10       TYPE string,     "Previous Employer Name"
+        prev_emp_country_key_10 TYPE string,
+         from_date_prev_job_10  TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job_10    TYPE string,     "End Date of Previous Job"
+         area_of_job_10         TYPE string,
+         designation_10         TYPE string,
+*         previous_designation  TYPE string,
+          last_drawn_salary TYPE string,
+          present_residing_city TYPE string,
+          disability TYPE string,
+          pic_url TYPE string,
+          cv_url TYPE string,
+       END OF it_tab.
+DATA:
+  gt_tab TYPE STANDARD TABLE OF it_tab,
+  st_tab TYPE it_tab,
+  vt_tab TYPE STANDARD TABLE OF it_tab,
+  it_raw TYPE truxs_t_text_data.
+
+DATA:
+  gv_applicant_no TYPE bapiappl-pernr.           "Company Code"
+
+TYPES: BEGIN OF messg,
+         mg TYPE string,
+       END OF messg.
+DATA: it_mg TYPE TABLE OF messg,
+      wa_mg TYPE messg.
+
+DATA: gt_errmsg       TYPE TABLE OF bapiret2,
+      gs_errmsg       TYPE bapiret2,
+      tab_msgret_temp TYPE TABLE OF bapiret2.
+
+TYPES: BEGIN OF b_tab,
+         applicant_no       TYPE string,     "Applicant No"
+*//...   Personal Data Structure
+         title             TYPE string,
+         first_name         TYPE string,     "First Name"
+         last_name          TYPE string,     "Last Name"
+         father_name        TYPE string,
+         ssn                TYPE string,
+         dob                TYPE string,        "DOB
+*         title              TYPE string,
+         gender             TYPE string,
+         nationality        TYPE string,
+         address            TYPE string,
+         address_block      TYPE string,
+         postal_code        TYPE string,
+         city               TYPE string,
+*//...   Addresses Data Structure
+         cell_no            TYPE string,     "Cell no"
+*//...   Communications Table Data Structure
+         email              TYPE string,     "Email"
+*//...   Vacancy Assignment Data Structure
+         vacancy            TYPE string,     "Vacancy"
+
+*//...   Education Data Structure
+         education_type     TYPE string,     "Sub Type for Education Type e.g. Primary, Secondary, University etc
+         text_edu_inst      TYPE string,     "Text for Educational Institute"
+         edu_training_text  TYPE string,
+         from_date_edu      TYPE string,
+         to_date_edu        TYPE string,     "  End Date of Education"
+         cgpa               TYPE string,
+         years_of_edu       TYPE string,
+*//...   Previous Employer/Experience  Data Structure
+         prev_emp_name      TYPE string,     "Previous Employer Name"
+         from_date_prev_job TYPE string,     "Start Date of Previous Job"
+         to_date_prev_job   TYPE string,     "End Date of Previous Job"
+         area_of_job        TYPE string,
+         designation        TYPE string,
+
+
+*******************changes made on 21 June 2021
+
+
+           tele_no                    TYPE string,
+           advert                     TYPE string,
+           certificate                TYPE string,
+           institute_country          TYPE string,
+           certificate_2              TYPE string,
+           text_edu_inst_2            TYPE string,
+           edu_training_text_2        TYPE string,
+           from_date_edu_2            TYPE string,
+           to_date_edu_2              TYPE string,
+           education_type_2           TYPE string,
+           institute_country_2        TYPE string,
+           cgpa_2                     TYPE string,
+           years_of_edu_2             TYPE string,
+           certificate_3              TYPE string,
+           text_edu_inst_3            TYPE string,
+           edu_training_text_3        TYPE string,
+           from_date_edu_3            TYPE string,
+           to_date_edu_3              TYPE string,
+           education_type_3           TYPE string,
+           institute_country_3        TYPE string,
+           cgpa_3                     TYPE string,
+           years_of_edu_3             TYPE string,
+           certificate_4              TYPE string,
+           text_edu_inst_4            TYPE string,
+           edu_training_text_4        TYPE string,
+           from_date_edu_4            TYPE string,
+           to_date_edu_4              TYPE string,
+           education_type_4           TYPE string,
+           institute_country_4        TYPE string,
+           cgpa_4                     TYPE string,
+           years_of_edu_4             TYPE string,
+           certificate_5              TYPE string,
+           text_edu_inst_5            TYPE string,
+           edu_training_text_5        TYPE string,
+           from_date_edu_5            TYPE string,
+           to_date_edu_5              TYPE string,
+           education_type_5           TYPE string,
+           institute_country_5        TYPE string,
+           cgpa_5                     TYPE string,
+           years_of_edu_5             TYPE string,
+           certificate_6              TYPE string,
+           text_edu_inst_6            TYPE string,
+           edu_training_text_6        TYPE string,
+           from_date_edu_6            TYPE string,
+           to_date_edu_6              TYPE string,
+           education_type_6           TYPE string,
+           institute_country_6        TYPE string,
+           cgpa_6                     TYPE string,
+           years_of_edu_6             TYPE string,
+           certificate_7              TYPE string,
+           text_edu_inst_7            TYPE string,
+           edu_training_text_7        TYPE string,
+           from_date_edu_7            TYPE string,
+           to_date_edu_7              TYPE string,
+           education_type_7           TYPE string,
+           institute_country_7        TYPE string,
+           cgpa_7                     TYPE string,
+           years_of_edu_7             TYPE string,
+           prev_emp_country_key       TYPE string,
+           prev_emp_name_2            TYPE string,
+           from_date_prev_job_2       TYPE string,
+           to_date_prev_job_2         TYPE string,
+           area_of_job_2              TYPE string,
+           prev_emp_country_key_2     TYPE string,
+           designation_2              TYPE string,
+           prev_emp_name_3            TYPE string,
+           from_date_prev_job_3       TYPE string,
+           to_date_prev_job_3         TYPE string,
+           area_of_job_3              TYPE string,
+           prev_emp_country_key_3     TYPE string,
+           designation_3              TYPE string,
+           prev_emp_name_4            TYPE string,
+           from_date_prev_job_4       TYPE string,
+           to_date_prev_job_4         TYPE string,
+           area_of_job_4              TYPE string,
+           prev_emp_country_key_4     TYPE string,
+           designation_4              TYPE string,
+           prev_emp_name_5            TYPE string,
+           from_date_prev_job_5       TYPE string,
+           to_date_prev_job_5         TYPE string,
+           area_of_job_5              TYPE string,
+           prev_emp_country_key_5     TYPE string,
+           designation_5              TYPE string,
+           prev_emp_name_6            TYPE string,
+           from_date_prev_job_6       TYPE string,
+           to_date_prev_job_6         TYPE string,
+           area_of_job_6              TYPE string,
+           prev_emp_country_key_6     TYPE string,
+           designation_6              TYPE string,
+           prev_emp_name_7            TYPE string,
+           from_date_prev_job_7       TYPE string,
+           to_date_prev_job_7         TYPE string,
+           area_of_job_7              TYPE string,
+           prev_emp_country_key_7     TYPE string,
+           designation_7              TYPE string,
+           prev_emp_name_8            TYPE string,
+           from_date_prev_job_8       TYPE string,
+           to_date_prev_job_8         TYPE string,
+           area_of_job_8              TYPE string,
+           prev_emp_country_key_8     TYPE string,
+           designation_8              TYPE string,
+           prev_emp_name_9            TYPE string,
+           from_date_prev_job_9       TYPE string,
+           to_date_prev_job_9         TYPE string,
+           area_of_job_9              TYPE string,
+           prev_emp_country_key_9     TYPE string,
+           designation_9              TYPE string,
+           prev_emp_name_10           TYPE string,
+           from_date_prev_job_10      TYPE string,
+           to_date_prev_job_10        TYPE string,
+           area_of_job_10             TYPE string,
+           prev_emp_country_key_10    TYPE string,
+           designation_10             TYPE string,
+           pic_url                    TYPE string,
+           cv_url                     TYPE string,
+           skype_id                   TYPE string,
+           last_drawn_salary          TYPE string,
+           disability                 TYPE string,
+           present_residing_city      TYPE string,
+           error_msg          TYPE string,
+
+       END OF b_tab.
+DATA: down_tab TYPE TABLE OF b_tab,
+      down_wa  TYPE b_tab.
+***"""""""""""""""""""""" DOWNLOAD FILE HEADINGS"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+*down_wa-applicant_no     = 'Applicant No'.
+**//...   Personal Data Structure
+*down_wa-first_name       = 'First Name'.
+*down_wa-last_name        = 'Last Name'.
+*down_wa-dob              = 'DOB'.
+*down_wa-ssn             = ' SSN'.
+
+*down_wa-gender        = ' Gender'.
+*down_wa-nationality    = 'Nationality'.
+*down_wa-address        = 'Address'.
+*down_wa-postal_code     = 'Postal_code'.
+*down_wa-city          = ' City'.
+**//...   Addresses Data Structure
+*down_wa-cell_no          = 'Cell no'.
+**//...   Communications Table Data Structure
+*down_wa-email            = 'Email'.
+**//...   Vacancy Assignment Data Structure
+*down_wa-vacancy          = 'Vacancy'.
+*
+**//...   Education Data Structure
+*down_wa-education_type   = 'Sub Type for Education Type'. " e.g. Primary, Secondary, University etc
+*down_wa-text_edu_inst    = 'Text for Educational Institute'.
+*down_wa-edu_training_text = 'Edu/Training Text'.
+*down_wa-from_date_edu     = 'From Date of Education'.
+*down_wa-to_date_edu     = 'To Date of Education'.
+*down_wa-cgpa              = 'CGPA'.
+*down_wa-years_of_edu       = 'Year of Education'.
+**//...   Previous Employer/Experience  Data Structure
+*down_wa-prev_emp_name    = 'Previous Employer Name'.
+*down_wa-from_date_prev_job  = 'Start Date of Previous Job'.
+*down_wa-to_date_prev_job   = 'End Date of Previous Job'.
+*down_wa-area_of_job       = ' Area of job '.
+*down_wa-designation      = 'Designation'.
+*down_wa-error_msg = 'Error Message'.
+*
+*APPEND down_wa TO down_tab.
+
+*CLEAR down_wa.

@@ -1,0 +1,1279 @@
+*&---------------------------------------------------------------------*
+*& Include          ZRE_RO_UPLOAD_PROGRAM_F01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*& Form GET_FILE
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+
+
+FORM get_file .
+
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+      field_name    = 'P_FILE '
+    IMPORTING
+      file_name     = p_file.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form UPLOAD_DATA
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM upload_data .
+
+  IF NOT p_file IS INITIAL.
+
+    CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+      EXPORTING
+*       I_FIELD_SEPERATOR    = ','
+*        i_line_header        = 'X'
+        i_tab_raw_data       = it_raw
+        i_filename           = p_file
+      TABLES
+        i_tab_converted_data = gt_tab[]
+      EXCEPTIONS
+        conversion_failed    = 1
+        OTHERS               = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+
+    READ TABLE gt_tab INTO DATA(w_data1) INDEX 1.
+    DELETE gt_tab INDEX 1.
+
+    down_wa-bukrs* =                 w_data1-bukrs*  . "'Company Code'.
+    down_wa-swenr* =                 w_data1-swenr*  . "'Business Entity'.
+    down_wa-smenr  =                 w_data1-smenr  . "'Rental Object No.'.
+    down_wa-rotype* =                w_data1-rotype*  . "'ROTYPE'.
+    down_wa-snunr* =                 w_data1-snunr*  . "'SNUNR'.
+    down_wa-sgenr* =                 w_data1-sgenr*  . "'SGENR'.
+    down_wa-xmetxt* =                w_data1-xmetxt*  . "'Building Text'.
+    down_wa-validfrom* =             w_data1-validfrom*  . "'Valid From'.
+    down_wa-validto* =               w_data1-validto*  . "'Valid to'.
+    down_wa-firstposting =           w_data1-firstposting  . "'First posting'.
+    down_wa-country* =               w_data1-country*  . "'Country'.
+    down_wa-region* =                w_data1-region*  . "' Region'.
+    down_wa-post_code1 =             w_data1-post_code1  . "'post code 1'.
+    down_wa-city1 =                  w_data1-city1  . "'city'   .
+    down_wa-city2 =                  w_data1-city2  . "'DISTRICT'   .
+    down_wa-street =                 w_data1-street  . "'street_lng'   .
+    down_wa-house_num1  =            w_data1-house_num1  . "'house_no'   .
+    down_wa-building   =             w_data1-building  . "'BUILDING'   .
+    down_wa-str_suppl1   =           w_data1-str_suppl1  . "'STR_SUPPL1'  .
+    down_wa-str_suppl2   =           w_data1-str_suppl2  . "'STR_SUPPL2'  .
+    down_wa-str_suppl3   =           w_data1-str_suppl3  . "'STR_SUPPL3'   .
+    down_wa-location =               w_data1-location  . "'LOCATION'  .
+    down_wa-zz_awqaf_no    =         w_data1-zz_awqaf_no  . "'ZZ_AWQAF_NO'   .
+    down_wa-zz_previewer_notes   =    w_data1-zz_previewer_notes . " 'ZZ_PREVIEWER_NOTES'.
+    down_wa-zz_unit_num          =    w_data1-zz_unit_num . " 'ZZ_UNIT_NUM'.
+    down_wa-zz_electric_meternum   =  w_data1-zz_electric_meternum . " 'ZZ_ELECTRIC_METERNUM'.
+    down_wa-zz_water_meter_num   =    w_data1-zz_water_meter_num . " 'ZZ_WATER_METER_NUM'.
+    down_wa-zz_apartment_num      =   w_data1-zz_apartment_num . " 'ZZ_APARTMENT_NUM'.
+    down_wa-zz_basic_use         =    w_data1-zz_basic_use . " 'ZZ_BASIC_USE'.
+    down_wa-zz_secondary_use      =   w_data1-zz_secondary_use . " 'ZZ_SECONDARY_USE '.
+    down_wa-zz_re_invested        =   w_data1-zz_re_invested . " 'ZZ_RE_INVESTED'.
+    down_wa-zz_chart_no           =   w_data1-zz_chart_no . " 'ZZ_CHART_NO'   .
+    down_wa-zz_block_no           =   w_data1-zz_block_no . " 'ZZ_BLOCK_NO'   .
+    down_wa-zz_piece_no           =   w_data1-zz_piece_no . " 'ZZ_PIECE_NO'   .
+    down_wa-zz_rental_value       =   w_data1-zz_rental_value . " 'ZZ_RENTAL_VALUE'.
+    down_wa-zz_rentalval_surround  =  w_data1-zz_rentalval_surround . " 'ZZ_RENTALVAL_SURROUND'.
+    down_wa-zz_rentval_comparision  = w_data1-zz_rentval_comparision . " 'ZZ_RENTVAL_COMPARISION'.
+    down_wa-zz_rent_income_method   = w_data1-zz_rent_income_method . " 'ZZ_RENT_INCOME_METHOD'.
+    down_wa-zz_cost_rent_val        = w_data1-zz_cost_rent_val . " 'ZZ_COST_RENT_VAL'.
+    down_wa-fixfitcharact           = w_data1-fixfitcharact . " 'FIXFITCHARACT'.
+    down_wa-validfrom               = w_data1-validfrom . " 'VALIDFROM'.
+    down_wa-validto                 = w_data1-validto . " 'VALIDTO'.
+    down_wa-meas                    = w_data1-meas . " 'MEAS'.
+    down_wa-measvalue               = w_data1-measvalue . " 'MEASVALUE'.
+    down_wa-prctr                   = w_data1-prctr . " 'PRCTR'.
+*BOC BY Salman -- New field added
+    down_wa-zz_mainten             = w_data1-zz_mainten. "'Maintenance Required'.
+*EOC BY Salman -- New field added
+*BOC bY Ehsan  -- Adding New Fields
+    down_wa-sgrnr                   = w_data1-sgrnr. "Land"
+    down_wa-zz_building             = w_data1-zz_building. "Building
+    down_wa-zz_land                 = w_data1-zz_land.
+*EOC bY Ehsan  -- Adding New Fields
+*    down_wa-error                      = 'ERROR MESSAGE'.
+    APPEND down_wa TO down_tab.
+
+    CLEAR down_wa.
+
+  ENDIF.
+  PERFORM validation.
+
+ENDFORM.
+
+FORM validation.
+  DATA: length  TYPE string,
+        val(11) TYPE c,
+        row(200)     TYPE c,
+        lv_mg   TYPE string.
+  IF NOT gt_tab[] IS INITIAL.
+    MOVE gt_tab TO vt_tab.
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&VALIDATION&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%%
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%%
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%%
+
+
+    LOOP AT vt_tab[] INTO DATA(ls_tabb).
+      row = row + 1.
+      FREE: et_term_org,
+            et_measurement,
+            et_charact,
+            et_address.
+
+      FREE:
+      gv_comp_code,
+      gv_buis_ent,
+      gv_rent_type,
+      gv_usage_type,
+      gv_ren_obj_no,
+      gs_ren_struc,
+      gv_comp_code,
+      gv_buis_ent,
+      gv_ren_obj_no.
+
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      gv_comp_code                        = ls_tabb-bukrs*.
+      IF  gv_comp_code IS INITIAL.
+        CONCATENATE 'Company Code on Column 1  '
+                  row
+                  ' is a mandatory field cannot be empty'
+                  INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      gv_buis_ent                         = ls_tabb-swenr*.
+      IF  gv_buis_ent  IS INITIAL.
+        CONCATENATE 'Business Entity on Column 2  '
+                 row
+                 ' is a mandatory field cannot be empty'
+                 INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      gv_ren_obj_no                       = ls_tabb-smenr.
+
+      IF  gv_ren_obj_no  IS INITIAL.
+        CONCATENATE 'Rental Object on Column 3  '
+                  row
+                  ' is a mandatory field cannot be empty'
+                  INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+*//   Moving Rental Structure values  into Rental Objects.
+      gv_rent_type                        = ls_tabb-rotype*.
+
+      IF  gv_rent_type  IS INITIAL.
+        CONCATENATE 'Rental Object Type on Column 4  '
+                  row
+                  ' is a mandatory field cannot be empty'
+                  INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      gv_usage_type                       = ls_tabb-snunr*.
+
+      IF  gv_usage_type  IS INITIAL.
+        CONCATENATE 'Usage Type on Column 5  '
+                   row
+                   ' is a mandatory field cannot be empty'
+                   INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      gs_ren_struc-building               = ls_tabb-sgenr*.
+      IF  gs_ren_struc-building  IS INITIAL.
+        CONCATENATE 'Name of Building on Column 6  '
+                  row
+                  ' is a mandatory field cannot be empty'
+                  INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      gs_ren_struc-rental_object_text          = ls_tabb-xmetxt*.
+      IF  gs_ren_struc-rental_object_text  IS INITIAL.
+        CONCATENATE 'Rental Object Name on Column 7  '
+                row
+                ' is a mandatory field cannot be empty'
+                INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+*      gs_ren_struc-CASH_FLOW_START_DATE      = ls_tabb-FIRSTPOSTING.
+
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+*//   Moving Values into Terms exporting table..
+*      ls_et_term-valid_from               = <fs_tab>-VALIDFROM*.
+
+      CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+        EXPORTING
+          input  = ls_tabb-validfrom*
+        IMPORTING
+          output = gs_ren_struc-object_valid_from.
+      IF  gs_ren_struc-object_valid_from  IS INITIAL.
+        CONCATENATE 'Object Valid From on Column 8  '
+                 row
+                 ' is a mandatory field cannot be empty'
+                 INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_term-valid_to                 = <fs_tab>-VALIDTO*.
+
+      CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+        EXPORTING
+          input  = ls_tabb-validto*
+        IMPORTING
+          output = gs_ren_struc-object_valid_to.
+      IF  gs_ren_struc-object_valid_to  IS INITIAL.
+        CONCATENATE 'Object Valid To on Column 9  '
+                 row
+                 ' is a mandatory field cannot be empty'
+                 INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+*      ls_et_term-PROFIT_CTR              = ls_tabb-PRCTR.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_et_address-country               = ls_tabb-country*.
+      IF  ls_et_address-country  IS INITIAL.
+        CONCATENATE 'Country Key on Column 11  '
+                   row
+                   ' is a mandatory field cannot be empty'
+                   INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_et_address-region               = ls_tabb-region*.
+      IF  ls_et_address-region  IS INITIAL.
+        CONCATENATE 'Region on Column 12  '
+                   row
+                   ' is a mandatory field cannot be empty'
+                   INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*
+*      ls_et_address-POSTL_COD1           = ls_tabb-POST_CODE1.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_address-CITY                 = ls_tabb-CITY1.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_address-DISTRICT           = ls_tabb-CITY2.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_address-STREET_LNG           = ls_tabb-STREET.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_address-HOUSE_NO                = ls_tabb-HOUSE_NUM1.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_address-BUILDING                 = ls_tabb-BUILDING.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_address-STR_SUPPL1                 = ls_tabb-STR_SUPPL1.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_address-STR_SUPPL2           = ls_tabb-STR_SUPPL2.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_address-STR_SUPPL3           = ls_tabb-STR_SUPPL3.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_address-LOCATION                = ls_tabb-LOCATION.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*
+** fill values for user fields
+*      ls_ci_data-ZZ_AWQAF_NO     = ls_tabb-ZZ_AWQAF_NO.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_PREVIEWER_NOTES     = ls_tabb-ZZ_PREVIEWER_NOTES.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_UNIT_NUM     = ls_tabb-ZZ_UNIT_NUM.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_ELECTRIC_METERNUM     = ls_tabb-ZZ_ELECTRIC_METERNUM.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_WATER_METER_NUM     = ls_tabb-ZZ_WATER_METER_NUM.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_APARTMENT_NUM     = ls_tabb-ZZ_APARTMENT_NUM.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_BASIC_USE     = ls_tabb-ZZ_BASIC_USE.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_SECONDARY_USE     = ls_tabb-ZZ_SECONDARY_USE.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_RE_INVESTED     = ls_tabb-ZZ_RE_INVESTED.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_CHART_NO     = ls_tabb-ZZ_CHART_NO.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_BLOCK_NO     = ls_tabb-ZZ_BLOCK_NO.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_ci_data-ZZ_PIECE_NO     = ls_tabb-ZZ_PIECE_NO.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      val = ls_tabb-zz_rental_value.
+      length = strlen( val ).
+      IF length GT 8.
+        CONCATENATE 'Rental Value Price length on Column 49 Row '
+                    row
+                    '  exceed the limit, invalid entry'
+                    INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+      ENDIF.
+      CLEAR val. CLEAR length.
+      ls_ci_data-zz_rental_value     = ls_tabb-zz_rental_value.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      val = ls_tabb-zz_rentalval_surround.
+      length = strlen( val ).
+      IF length GT 8.
+        CONCATENATE 'Rental Value Surround Price length on Column 50 Row '
+                  row
+                  '  exceed the limit, invalid entry'
+                  INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+      CLEAR val. CLEAR length.
+      ls_ci_data-zz_rentalval_surround     = ls_tabb-zz_rentalval_surround.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      val = ls_tabb-zz_rentval_comparision.
+      length = strlen( val ).
+      IF length GT 8.
+        CONCATENATE 'Rental Value Comparision Value length on Column 51 Row '
+                   row
+                   '  exceed the limit, invalid entry'
+                   INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+      CLEAR val. CLEAR length.
+      ls_ci_data-zz_rentval_comparision     = ls_tabb-zz_rentval_comparision.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      val = ls_tabb-zz_rent_income_method.
+      length = strlen( val ).
+      IF length GT 8.
+        CONCATENATE 'Rental Income Method Price length on Column 52 Row '
+                  row
+                  '  exceed the limit, invalid entry'
+                  INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+      CLEAR val. CLEAR length.
+      ls_ci_data-zz_rent_income_method     = ls_tabb-zz_rent_income_method.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      val = ls_tabb-zz_cost_rent_val.
+      length = strlen( val ).
+      IF length GT 6.
+        CONCATENATE 'Cost Rental Value length on Column 53 Row '
+                  row
+                  '  exceed the limit, invalid entry'
+                  INTO lv_mg.
+        MESSAGE e000(oo) WITH lv_mg.
+        CLEAR lv_mg.
+
+      ENDIF.
+      CLEAR val. CLEAR length.
+      ls_ci_data-zz_cost_rent_val     =  ls_tabb-zz_cost_rent_val ."conv #(
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_charact-fix_fit_charact                 = ls_tabb-fixfitcharact.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+        EXPORTING
+          input  = ls_tabb-validfrom
+        IMPORTING
+          output = ls_charact-valid_from.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+        EXPORTING
+          input  = ls_tabb-validto
+        IMPORTING
+          output = ls_charact-valid_to.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+
+*      ls_et_meas-MEASUREMENT             = ls_tabb-MEAS.
+**^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      ls_et_meas-VALUE_AVAIL              = ls_tabb-MEASVALUE.
+*^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+*      endloop.
+
+
+      APPEND ls_charact TO et_charact.
+      APPEND ls_et_term TO et_term_org.
+      APPEND ls_et_meas TO et_measurement.
+      APPEND ls_et_address TO et_address.
+
+
+    ENDLOOP.
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%%
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%%
+
+    FREE:       et_term_org,
+                et_measurement,
+                et_charact,
+                et_address.
+
+    FREE:
+    gv_comp_code,
+    gv_buis_ent,
+    gv_rent_type,
+    gv_usage_type,
+    gv_ren_obj_no,
+    gs_ren_struc,
+    gv_comp_code,
+    gv_buis_ent,
+    gv_ren_obj_no,
+    ls_charact,
+    ls_et_term,
+    ls_et_meas,
+    ls_et_address.
+
+
+  ELSE.
+    MESSAGE 'EXCEL IS EMPTY' TYPE 'E'.
+  ENDIF.
+
+
+
+
+ENDFORM.
+
+
+
+DATA wa_vibdro TYPE vibdro.
+DATA wa_vibdro1 TYPE vibdro.
+DATA: length2 TYPE string,
+      val2    TYPE string.
+DATA: counter TYPE i.
+
+DATA lv_string TYPE string.
+DATA binary_content TYPE solix_tab.
+DATA size           TYPE so_obj_len.
+
+
+CONSTANTS:
+  gc_tab  TYPE c VALUE cl_bcs_convert=>gc_tab,
+  gc_crlf TYPE c VALUE cl_bcs_convert=>gc_crlf.
+*&---------------------------------------------------------------------*
+*& Form CREATE_DATA
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+DATA: perno TYPE usr21-persnumber,
+      email TYPE adr6-smtp_addr.
+
+FORM create_data .
+
+
+  IF NOT gt_tab[] IS INITIAL.
+
+
+
+    LOOP AT gt_tab[] ASSIGNING FIELD-SYMBOL(<fs_tab>).
+
+      FREE:       et_term_org,
+                  et_measurement,
+                  et_charact,
+                  et_address.
+
+      FREE:
+      gv_comp_code,
+      gv_buis_ent,
+      gv_rent_type,
+      gv_usage_type,
+      gv_ren_obj_no,
+      gs_ren_struc,
+      gv_comp_code,
+      gv_buis_ent,
+      gv_ren_obj_no,
+      ls_charact,
+      ls_et_term,
+      ls_et_meas,
+      ls_et_address.
+
+      gv_comp_code                        = <fs_tab>-bukrs*.
+      gv_buis_ent                         = <fs_tab>-swenr*.
+      gv_ren_obj_no                       = <fs_tab>-smenr.
+      gv_rent_type                        = <fs_tab>-rotype*.
+      gv_usage_type                       = <fs_tab>-snunr*.
+      gs_ren_struc-building               = <fs_tab>-sgenr*.
+      gs_ren_struc-rental_object_text          = <fs_tab>-xmetxt*.
+
+*      *      gs_ren_struc-CASH_FLOW_START_DATE      = <fs_tab>-FIRSTPOSTING.
+      CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+        EXPORTING
+          input  = <fs_tab>-firstposting
+        IMPORTING
+          output = gs_ren_struc-cash_flow_start_date.
+
+
+
+      CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+        EXPORTING
+          input  = <fs_tab>-validfrom*
+        IMPORTING
+          output = gs_ren_struc-object_valid_from.
+
+      CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+        EXPORTING
+          input  = <fs_tab>-validto*
+        IMPORTING
+          output = gs_ren_struc-object_valid_to.
+
+      ls_et_term-profit_ctr              = <fs_tab>-prctr.
+      ls_et_address-country               = <fs_tab>-country*.
+      ls_et_address-region               = <fs_tab>-region*.
+      ls_et_address-postl_cod1           = <fs_tab>-post_code1.
+      ls_et_address-city                 = <fs_tab>-city1.
+      ls_et_address-district           = <fs_tab>-city2.
+      ls_et_address-street_lng           = <fs_tab>-street.
+      ls_et_address-house_no                = <fs_tab>-house_num1.
+      ls_et_address-building                 = <fs_tab>-building.
+      ls_et_address-str_suppl1                 = <fs_tab>-str_suppl1.
+      ls_et_address-str_suppl2           = <fs_tab>-str_suppl2.
+      ls_et_address-str_suppl3           = <fs_tab>-str_suppl3.
+      ls_et_address-location                = <fs_tab>-location.
+      ls_ci_data-zz_awqaf_no     = <fs_tab>-zz_awqaf_no.
+      ls_ci_data-zz_previewer_notes     = <fs_tab>-zz_previewer_notes.
+      ls_ci_data-zz_unit_num     = <fs_tab>-zz_unit_num.
+      ls_ci_data-zz_electric_meternum     = <fs_tab>-zz_electric_meternum.
+      ls_ci_data-zz_water_meter_num     = <fs_tab>-zz_water_meter_num.
+      ls_ci_data-zz_apartment_num     = <fs_tab>-zz_apartment_num.
+      ls_ci_data-zz_basic_use     = <fs_tab>-zz_basic_use.
+      ls_ci_data-zz_secondary_use     = <fs_tab>-zz_secondary_use.
+      ls_ci_data-zz_re_invested     = <fs_tab>-zz_re_invested.
+      ls_ci_data-zz_chart_no     = <fs_tab>-zz_chart_no.
+      ls_ci_data-zz_block_no     = <fs_tab>-zz_block_no.
+      ls_ci_data-zz_piece_no     = <fs_tab>-zz_piece_no.
+      ls_ci_data-zz_rental_value     = <fs_tab>-zz_rental_value.
+      ls_ci_data-zz_rentalval_surround     = <fs_tab>-zz_rentalval_surround.
+      ls_ci_data-zz_rentval_comparision     = <fs_tab>-zz_rentval_comparision.
+      ls_ci_data-zz_rent_income_method     = <fs_tab>-zz_rent_income_method.
+      ls_ci_data-zz_cost_rent_val     =  <fs_tab>-zz_cost_rent_val ."conv #(
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+      val2 = <fs_tab>-fixfitcharact .
+      length2 = strlen( val2 ).
+      DATA: lv_dummy TYPE c LENGTH 10.
+      CONDENSE val2.
+      SPLIT val2 AT ',' INTO TABLE DATA(ff) .
+      DELETE ADJACENT DUPLICATES FROM ff.
+      LOOP AT ff INTO DATA(ls_ff).
+        CONDENSE ls_ff.
+        ls_charact-fix_fit_charact    = ls_ff .
+        IF <fs_tab>-validfrom IS NOT INITIAL AND <fs_tab>-validto IS NOT INITIAL.
+          lv_dummy = <fs_tab>-validfrom.
+          CONCATENATE lv_dummy+6(4) lv_dummy+3(2) lv_dummy+0(2) INTO lv_dummy.
+          ls_charact-valid_from = lv_dummy.
+*          CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+*            EXPORTING
+*              INPUT  = <fs_tab>-VALIDFROM
+*            IMPORTING
+*              OUTPUT = LS_CHARACT-VALID_FROM.
+
+*          if LS_CHARACT-VALID_FROM is INITIAL.
+*            DATA(lv_yyyy) = <fs_tab>-VALIDFROM+6(4).
+*            DATA(lv_mm) = <fs_tab>-VALIDFROM+3(2).
+*            DATA(lv_dd) = <fs_tab>-VALIDFROM+0(2).
+*            LS_CHARACT-VALID_FROM = | { lv_yyyy }{ lv_mm }{ lv_dd } |.
+*          endif.
+
+          CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+            EXPORTING
+              input  = <fs_tab>-validto
+            IMPORTING
+              output = ls_charact-valid_to.
+
+          APPEND ls_charact TO et_charact.
+          CLEAR ls_charact-fix_fit_charact.
+        ELSE.
+          APPEND ls_charact-fix_fit_charact TO et_charact.
+          CLEAR ls_charact-fix_fit_charact.
+        ENDIF.
+        CLEAR ls_charact-fix_fit_charact.
+      ENDLOOP.
+*      LS_CHARACT-FIX_FIT_CHARACT                 = <fs_tab>-FIXFITCHARACT.
+* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**
+**      CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+**        EXPORTING
+**          INPUT  = <fs_tab>-VALIDFROM
+**        IMPORTING
+**          OUTPUT = LS_CHARACT-VALID_FROM.
+*** *&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**
+**      CALL FUNCTION 'CONVERSION_EXIT_IDATE_INPUT'
+**        EXPORTING
+**          INPUT  = <fs_tab>-VALIDTO
+**        IMPORTING
+**          OUTPUT = LS_CHARACT-VALID_TO.
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+      CLEAR val2. CLEAR length2.
+      val2 = <fs_tab>-meas.
+      CONDENSE val2.
+      SPLIT val2 AT ',' INTO TABLE DATA(meass) .
+*      sort Meass.
+      DELETE ADJACENT DUPLICATES FROM meass.
+      DESCRIBE TABLE meass LINES DATA(lv_m_line).
+
+      CLEAR val2. CLEAR length2.
+      val2 = <fs_tab>-measvalue.
+      CONDENSE val2.
+      SPLIT val2 AT ',' INTO TABLE DATA(measvalue) .
+*      sort MEASVALUE.
+      DELETE ADJACENT DUPLICATES FROM measvalue.
+
+      DESCRIBE TABLE measvalue LINES DATA(lv_mv_line).
+      IF lv_mv_line EQ lv_m_line.
+        counter = 0.
+* break-point.
+        LOOP AT meass INTO DATA(ls_ms).
+          counter =  counter + 1.
+          READ TABLE measvalue INTO DATA(ls_meas_e) INDEX counter.
+          CONDENSE ls_ms.
+          CONDENSE ls_meas_e.
+          ls_et_meas-measurement       =   ls_ms.
+          ls_et_meas-value_avail       =   ls_meas_e.
+          APPEND ls_et_meas TO et_measurement.
+          CLEAR : ls_et_meas .
+        ENDLOOP.
+      ENDIF.
+      IF lv_m_line GT lv_mv_line.
+        counter = 1.
+        LOOP AT meass INTO DATA(ls_ms2).
+          CONDENSE ls_ms2.
+          ls_et_meas-measurement = ls_ms2.
+          READ TABLE measvalue INTO DATA(ls_measval) INDEX counter.
+          CONDENSE ls_measval.
+          ls_et_meas-value_avail  = ls_measval.
+          counter =  counter + 1.
+          APPEND ls_et_meas TO et_measurement.
+          CLEAR : ls_et_meas , ls_measval .
+        ENDLOOP.
+      ENDIF.
+
+
+
+
+
+*        endif.
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+*       val2 = <fs_tab>-MEAS.
+*      length2 = strlen( val2 ).
+*      if length2 gt 4.
+*        CONDENSE val2.
+*        SPLIT val2 AT ',' INTO TABLE DATA(Meass) .
+*        DELETE ADJACENT DUPLICATES FROM Meass.
+*        ENDIF.
+*loop at meass INTO DATA(ls_meass).
+*  CONDENSE ls_meass.
+*                ls_et_meas-MEASUREMENT    = LS_MEASS .
+*                APPEND ls_et_meas-MEASUREMENT TO et_measurement.
+*                endloop.
+*      ls_et_meas-MEASUREMENT             = <fs_tab>-MEAS.
+*      ls_et_meas-VALUE_AVAIL              = <fs_tab>-MEASVALUE.
+
+*      APPEND LS_CHARACT to ET_CHARACT.
+      APPEND ls_et_term TO et_term_org.
+*      APPEND ls_et_meas TO et_measurement.
+      APPEND ls_et_address TO et_address.
+
+      IF p_r1 = 'X'.
+        lv_test_run = 'X'.
+      ELSE.
+        lv_test_run = ''.
+      ENDIF.
+
+      CALL FUNCTION 'BAPI_RE_RO_CREATE'
+        EXPORTING
+          comp_code_ext              = gv_comp_code
+          business_entity_number_ext = gv_buis_ent
+          rental_object_type         = gv_rent_type
+          usage_type                 = gv_usage_type
+          rental_object_number_ext   = gv_ren_obj_no
+          rental_object              = gs_ren_struc
+          object_address             = ls_et_address
+          test_run                   = lv_test_run
+        IMPORTING
+          compcode                   = gv_comp_code
+          businessentitynumber       = gv_buis_ent
+          rentalobjectnumber         = gv_ren_obj_no
+        TABLES
+          term_org_assignment        = et_term_org
+          measurement                = et_measurement
+          charact                    = et_charact
+          return                     = tab_msgret.
+
+      APPEND LINES OF tab_msgret TO tab_msgret_temp.    "Insert Empty line
+      DELETE tab_msgret_temp WHERE type = 'W'.
+      APPEND INITIAL LINE TO tab_msgret_temp.
+
+
+      LOOP AT tab_msgret INTO DATA(ls_msgret).
+
+        IF ls_msgret-type = 'E'.
+
+          CONCATENATE ls_msgret-message ',' sy-uline(5) down_wa-error INTO down_wa-error SEPARATED BY space.
+
+
+          CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+
+
+        ELSEIF ls_msgret-type = 'S'.
+          down_wa-error                      = 'Success'.
+          IF p_r2 ='X'.
+            CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+              EXPORTING
+                wait = 'X'.
+*            include zre_field_bdc.
+
+            IF NOT gv_ren_obj_no IS INITIAL.
+              CALL FUNCTION 'CONVERSION_EXIT_SWENR_INPUT'
+                EXPORTING
+                  input     = gv_buis_ent
+                IMPORTING
+                  output    = gv_buis_ent
+                EXCEPTIONS
+                  not_found = 1
+                  OTHERS    = 2.
+              IF sy-subrc <> 0.
+* Implement suitable error handling here
+              ENDIF.
+
+              SELECT SINGLE * FROM vibdro INTO CORRESPONDING FIELDS OF wa_vibdro1
+                       WHERE  bukrs EQ gv_comp_code
+                       AND swenr EQ    gv_buis_ent
+                       AND    smenr EQ gv_ren_obj_no.
+
+              wa_vibdro = wa_vibdro1  .
+
+
+
+              wa_vibdro-zz_awqaf_no     = <fs_tab>-zz_awqaf_no.
+              wa_vibdro-zz_previewer_notes     = <fs_tab>-zz_previewer_notes.
+              wa_vibdro-zz_unit_num     = <fs_tab>-zz_unit_num.
+              wa_vibdro-zz_electric_meternum     = <fs_tab>-zz_electric_meternum.
+              wa_vibdro-zz_water_meter_num     = <fs_tab>-zz_water_meter_num.
+              wa_vibdro-zz_apartment_num     = <fs_tab>-zz_apartment_num.
+              wa_vibdro-zz_basic_use     = <fs_tab>-zz_basic_use.
+              wa_vibdro-zz_secondary_use     = <fs_tab>-zz_secondary_use.
+              wa_vibdro-zz_re_invested     = <fs_tab>-zz_re_invested.
+              wa_vibdro-zz_chart_no     = <fs_tab>-zz_chart_no.
+              wa_vibdro-zz_block_no     = <fs_tab>-zz_block_no.
+              wa_vibdro-zz_piece_no     = <fs_tab>-zz_piece_no.
+              wa_vibdro-zz_rental_value     = <fs_tab>-zz_rental_value.
+              wa_vibdro-zz_rentalval_surround     = <fs_tab>-zz_rentalval_surround.
+              wa_vibdro-zz_rentval_comparision     = <fs_tab>-zz_rentval_comparision.
+              wa_vibdro-zz_rent_income_method     = <fs_tab>-zz_rent_income_method.
+              wa_vibdro-zz_cost_rent_val     =  <fs_tab>-zz_cost_rent_val ."conv #(
+*BOC By Salman -- Add enwfields
+              wa_vibdro-zz_mainten            =   <fs_tab>-zz_mainten .
+*EOC By Salman -- Add enwfields
+*BOC By Ehsan  -- Adding New Fields
+              wa_vibdro-sgrnr                =  <fs_tab>-sgrnr.
+              wa_vibdro-zz_building          =  <fs_tab>-building.
+              wa_vibdro-zz_land              =  <fs_tab>-zz_land.
+*EOC By Ehsan  -- Adding New Fields
+
+              MODIFY vibdro FROM wa_vibdro.
+              COMMIT WORK.
+              WAIT UP TO 1 SECONDS.
+*BOC By Ehsan -- Getting Long Text for field ZZ_previewer_Notes
+     CLEAR: ls_header, ls_tline.
+              REFRESH: lt_tline.
+
+              CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+                EXPORTING
+                  input  = gv_buis_ent
+                IMPORTING
+                  output = gv_buis_ent.
+
+              iv_object = 'IB' && gv_comp_code && gv_buis_ent && gv_ren_obj_no.
+
+              ls_header-tdobject = 'ZREBD_PN'.
+              ls_header-tdname = iv_object.
+              ls_header-tdid = 'Z_PN'.
+              ls_header-tdspras = sy-langu.
+
+              ls_tline-tdline =  <fs_tab>-zz_previewer_notes.  "wa-zz_previewer_notes .
+              APPEND ls_tline TO lt_tline.
+
+
+              CALL FUNCTION 'SAVE_TEXT'
+                EXPORTING
+                  client          = sy-mandt
+                  header          = ls_header
+*                 INSERT          = ' '
+                  savemode_direct = 'X'  "Commit the value now.
+                TABLES
+                  lines           = lt_tline
+                EXCEPTIONS
+                  id              = 1
+                  language        = 2
+                  name            = 3
+                  object          = 4
+                  OTHERS          = 5.
+*EOC By Ehsan -- Getting Long Text for field ZZ_previewer_Notes
+
+            ENDIF.
+
+
+
+          ENDIF.
+        ENDIF.
+
+
+      ENDLOOP.
+
+      down_wa-bukrs* = gv_comp_code .
+      IF gv_comp_code IS INITIAL.
+        down_wa-bukrs* = <fs_tab>-bukrs*.
+      ENDIF.
+
+      down_wa-swenr* = gv_buis_ent .
+      IF gv_buis_ent IS INITIAL.
+        down_wa-swenr* = <fs_tab>-swenr*.
+      ENDIF.
+
+
+      down_wa-smenr  = gv_ren_obj_no .
+      IF gv_ren_obj_no IS INITIAL.
+        down_wa-smenr = <fs_tab>-smenr.
+      ENDIF.
+
+      down_wa-rotype* = gv_rent_type.
+      down_wa-snunr* = gv_usage_type.
+      down_wa-sgenr* = gs_ren_struc-building.
+      down_wa-xmetxt* = gs_ren_struc-rental_object_text.
+      DATA(lv_year) = gs_ren_struc-object_valid_from+0(4).
+      DATA(lv_month) = gs_ren_struc-object_valid_from+4(2).
+      DATA(lv_date) = gs_ren_struc-object_valid_from+6(2).
+
+      CONCATENATE lv_date '.' lv_month '.' lv_year INTO DATA(lv_valid_from).
+      down_wa-validfrom* = lv_valid_from.
+
+      DATA(lv_year2) = gs_ren_struc-object_valid_to+0(4).
+      DATA(lv_month2) = gs_ren_struc-object_valid_to+4(2).
+      DATA(lv_date2) = gs_ren_struc-object_valid_to+6(2).
+
+      CONCATENATE lv_date2 '.' lv_month2 '.' lv_year2 INTO DATA(lv_valid_to).
+      down_wa-validto*  = lv_valid_to.
+
+
+*      DOWN_WA-FIRSTPOSTING = gs_ren_struc-CASH_FLOW_START_DATE.
+      DATA(lv_year5) = gs_ren_struc-cash_flow_start_date+0(4).
+      DATA(lv_month5) = gs_ren_struc-cash_flow_start_date+4(2).
+      DATA(lv_date5) = gs_ren_struc-cash_flow_start_date+6(2).
+
+      CONCATENATE lv_date5 '.' lv_month5 '.' lv_year5 INTO DATA(lv_first_post_date).
+      down_wa-firstposting  = lv_first_post_date.
+
+      down_wa-country* = ls_et_address-country.
+      down_wa-region* = ls_et_address-region .
+      down_wa-post_code1 = ls_et_address-postl_cod1.
+      down_wa-city1 =      ls_et_address-city.
+      down_wa-city2 =      ls_et_address-district.
+      down_wa-street =     ls_et_address-street_lng .
+      down_wa-house_num1 = ls_et_address-house_no.
+      down_wa-building   = ls_et_address-building .
+      down_wa-str_suppl1 =  ls_et_address-str_suppl1 .
+      down_wa-str_suppl2 =  ls_et_address-str_suppl2 .
+      down_wa-str_suppl3 =  ls_et_address-str_suppl3  .
+      down_wa-location =   ls_et_address-location.
+      down_wa-zz_awqaf_no    =       ls_ci_data-zz_awqaf_no     .
+      down_wa-zz_previewer_notes   = ls_ci_data-zz_previewer_notes.
+      down_wa-zz_unit_num          = ls_ci_data-zz_unit_num     .
+      down_wa-zz_electric_meternum  = ls_ci_data-zz_electric_meternum.
+      down_wa-zz_water_meter_num   = ls_ci_data-zz_water_meter_num.
+      down_wa-zz_apartment_num      = ls_ci_data-zz_apartment_num .
+      down_wa-zz_basic_use         = ls_ci_data-zz_basic_use     .
+      down_wa-zz_secondary_use      = ls_ci_data-zz_secondary_use  .
+      down_wa-zz_re_invested        = ls_ci_data-zz_re_invested    .
+      down_wa-zz_chart_no           = ls_ci_data-zz_chart_no     .
+      down_wa-zz_block_no           = ls_ci_data-zz_block_no     .
+      down_wa-zz_piece_no           = ls_ci_data-zz_piece_no     .
+      down_wa-zz_rental_value       =     ls_ci_data-zz_rental_value .
+      down_wa-zz_rentalval_surround  =    ls_ci_data-zz_rentalval_surround .
+      down_wa-zz_rentval_comparision  = ls_ci_data-zz_rentval_comparision.
+      down_wa-zz_rent_income_method      = ls_ci_data-zz_rent_income_method .
+      down_wa-zz_cost_rent_val           = ls_ci_data-zz_cost_rent_val .
+
+*            DOWN_WA-FIXFITCHARACT              = LS_CHARACT-FIX_FIT_CHARACT.
+
+      LOOP AT et_charact INTO ls_charact.
+        CONCATENATE ls_charact-fix_fit_charact ',' down_wa-fixfitcharact INTO down_wa-fixfitcharact SEPARATED BY space.
+      ENDLOOP.
+
+      DATA(lv_year3) = ls_charact-valid_from+0(4).
+      DATA(lv_month3) = ls_charact-valid_from+4(2).
+      DATA(lv_date3) = ls_charact-valid_from+6(2).
+
+      CONCATENATE lv_date3 '.' lv_month3 '.' lv_year3 INTO DATA(lv_ff_valid_from).
+      down_wa-validfrom  = lv_ff_valid_from.
+
+*            DOWN_WA-VALIDFROM                  = LS_CHARACT-VALID_FROM
+      .
+*            DOWN_WA-VALIDTO                    = LS_CHARACT-VALID_TO.
+      DATA(lv_year4) = ls_charact-valid_to+0(4).
+      DATA(lv_month4) = ls_charact-valid_to+4(2).
+      DATA(lv_date4) = ls_charact-valid_to+6(2).
+
+      CONCATENATE lv_date4 '.' lv_month4 '.' lv_year4 INTO DATA(lv_ff_valid_to).
+      down_wa-validto  = lv_ff_valid_to.
+
+*      DOWN_WA-FIXFITCHARACT  =   LS_CHARACT-FIX_FIT_CHARACT  .
+      LOOP AT et_measurement INTO ls_et_meas.
+        CONCATENATE ls_et_meas-measurement ',' down_wa-meas INTO down_wa-meas SEPARATED BY space.
+      ENDLOOP.
+*      DOWN_WA-MEAS  =  ls_measurement-MEASUREMENT   .
+      IF ls_meas_e IS NOT INITIAL.
+        LOOP AT measvalue INTO ls_meas_e.
+          CONCATENATE ls_meas_e ',' down_wa-measvalue INTO down_wa-measvalue SEPARATED BY space.
+        ENDLOOP.
+      ELSE.
+        LOOP AT measvalue INTO ls_measval.
+          CONCATENATE ls_measval ',' down_wa-measvalue INTO down_wa-measvalue SEPARATED BY space.
+        ENDLOOP.
+      ENDIF.
+
+*            DOWN_WA-MEAS                       = ls_et_meas-MEASUREMENT.
+*            DOWN_WA-MEASVALUE                  = ls_et_meas-VALUE_AVAIL.
+      down_wa-prctr                      = ls_et_term-profit_ctr.
+
+*            DOWN_WA-ERROR                      = LS_MSGRET-MESSAGE.
+
+*BOC By Salman -- new fields added
+      down_wa-zz_mainten  =   <fs_tab>-zz_mainten .
+*EOC By Salman -- new fields added
+*BOC By Ehsan -- Adding New Fields
+      down_wa-sgrnr       =  <fs_tab>-sgrnr.
+      down_wa-zz_building =  <fs_tab>-zz_building.
+      down_wa-zz_land     =  <fs_tab>-zz_land.
+*BOC By Ehsan -- Adding New Fields
+
+      APPEND down_wa TO down_tab.
+
+      CLEAR down_wa.
+
+
+
+    ENDLOOP.
+
+    IF c_down = 'X'.
+
+      PERFORM download_excel.
+
+    ENDIF.
+
+
+  ENDIF.
+
+  TRY.
+*     -------- create persistent send request ------------------------
+
+      send_request = cl_bcs=>create_persistent( ).
+
+      sender = cl_sapuser_bcs=>create( sy-uname ).
+      "Add sender to send request
+      CALL METHOD send_request->set_sender
+        EXPORTING
+          i_sender = sender.
+
+
+      CLEAR : perno  , email.
+      SELECT SINGLE persnumber INTO perno FROM usr21 WHERE bname EQ sy-uname.
+      SELECT SINGLE smtp_addr INTO email FROM adr6 WHERE persnumber EQ perno.
+
+*     add recipient (e-mail address)
+      gv_email = email.
+      recipient = cl_cam_address_bcs=>create_internet_address( gv_email ).
+      "Add recipient to send request
+      CALL METHOD send_request->add_recipient
+        EXPORTING
+          i_recipient = recipient
+          i_express   = 'X'.
+******************Prepare Body *************************************************
+**
+
+
+      CLEAR ls.
+      CONCATENATE '<table><p>Dear User, ' ',<br />' INTO ls-line SEPARATED BY space.
+      APPEND ls TO lt.
+
+      CLEAR ls.
+      ls-line = '<br />Below are the messages return from upload program'.
+      APPEND ls TO lt.
+
+
+      CLEAR ls.
+      ls-line = '</p></table>'.
+      APPEND ls TO lt.
+
+      CLEAR ls.
+      ls-line = '<p><table border="1" >'.   "bgcolor="#0A2A22"
+      APPEND ls TO lt.
+
+      CLEAR ls.
+      ls-line = '<tr>'.
+      APPEND ls TO lt.
+
+      CLEAR ls.
+      ls-line = '<th> Message Type </th>'.
+      APPEND ls TO lt.
+
+      CLEAR ls.
+      ls-line = '<th> Message ID </th>'.
+      APPEND ls TO lt.
+      CLEAR ls.
+      ls-line = '<th> Message Number </th>'.
+      APPEND ls TO lt.
+      CLEAR ls.
+      ls-line = '<th> Message </th>'.
+      APPEND ls TO lt.
+
+      CLEAR ls.
+      ls-line = '</tr>'.
+      APPEND ls TO lt.
+
+      LOOP AT tab_msgret_temp INTO DATA(wa_mail).
+
+        CONCATENATE '<tr><td>' wa_mail-type                  '</td>' INTO ls-line SEPARATED BY space.
+        APPEND ls TO lt.
+
+        CONCATENATE '<td>' wa_mail-id                 '</td>' INTO ls-line SEPARATED BY space.
+        APPEND ls TO lt.
+
+        CONCATENATE '<td>' wa_mail-number                '</td>' INTO ls-line SEPARATED BY space.
+        APPEND ls TO lt.
+
+        CONCATENATE '<td>' wa_mail-message                '</td></tr>' INTO ls-line SEPARATED BY space.
+        APPEND ls TO lt.
+      ENDLOOP.
+      CLEAR ls.
+      ls-line = '</table></p>'. "</body></html>'.
+      APPEND ls TO lt.
+*     -------- create and set document---------------
+*     *     Create Email Object  "Wrapper Class for Office Documents
+      document = cl_document_bcs=>create_document(
+                      i_type    = 'HTM'
+                      i_text    = lt
+                      i_length  = '12'
+                      i_subject = 'RO upload'  ).
+
+      PERFORM attachment.
+*     add the spread sheet as attachment to document object
+      document->add_attachment(
+        i_attachment_type    = 'xls'                        "#EC NOTEXT
+        i_attachment_subject = 'RO attachment '             "#EC NOTEXT
+        i_attachment_size    = size
+        i_att_content_hex    = binary_content ).
+
+
+*     Add document object to send request
+      CALL METHOD send_request->set_document( document ).
+      CALL METHOD send_request->send_without_dialog. "release method call to release the mail basically send mail
+      COMMIT WORK.
+
+    CATCH cx_bcs INTO bcs_exception.   "handler for exception error. catch is handler
+      WRITE:
+        'Error!',
+        'Error type:',
+        bcs_exception->error_type.
+  ENDTRY.
+
+
+
+
+
+  IF NOT tab_msgret_temp IS INITIAL.
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+      EXPORTING
+        i_callback_program = sy-repid
+        i_structure_name   = 'BAPIRET2'
+      TABLES
+        t_outtab           = tab_msgret_temp
+      EXCEPTIONS
+        program_error      = 1
+        OTHERS             = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+*  ELSE.
+*    MESSAGE 'Records Successfully uploaded' TYPE 'S'.
+  ENDIF.
+ENDFORM.
+
+FORM download_excel .
+
+  DATA: p_file2 TYPE rlgrap-filename.
+  DATA: p_file3 TYPE string.
+*  DATA : ans.
+*  DATA itab2 TYPE TABLE of it_tab.
+*  DATA wa2 TYPE it_tab.
+
+
+**
+***
+*  LOOP AT DOWN_TAB  INTO DOWN_WA.
+*
+*
+*    APPEND wa TO itab3.
+*
+*  ENDLOOP.
+**
+*
+*
+*  IF ans = '1'.
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      field_name = 'P_FILE2'
+    IMPORTING
+      file_name  = p_file2.
+
+  p_file3 = p_file2.
+
+  CONCATENATE p_file3 '.xls' INTO p_file3.
+  CALL METHOD cl_gui_frontend_services=>gui_download
+    EXPORTING
+      filename              = p_file3
+      write_bom             = 'X'
+      codepage              = '4103'
+*     filetype              = 'DAT'
+      write_field_separator = 'X'
+    CHANGING
+      data_tab              = down_tab[].
+*
+  IF  sy-subrc EQ 0.
+  ENDIF.
+*  ELSE.
+*  ENDIF.
+
+
+
+
+
+
+
+ENDFORM.
+
+
+FORM attachment.
+  DATA lv_string TYPE string.
+
+* data lines
+  LOOP AT down_tab INTO down_wa.
+    CONCATENATE lv_string
+    down_wa-bukrs*                 gc_tab
+    down_wa-swenr*                 gc_tab
+    down_wa-smenr                  gc_tab
+    down_wa-rotype*                gc_tab
+    down_wa-snunr*                 gc_tab
+    down_wa-sgenr*                 gc_tab
+    down_wa-xmetxt*                gc_tab
+    down_wa-validfrom*             gc_tab
+    down_wa-validto*               gc_tab
+    down_wa-firstposting           gc_tab
+    down_wa-country*               gc_tab
+    down_wa-region*                gc_tab
+    down_wa-post_code1             gc_tab
+    down_wa-city1                  gc_tab
+    down_wa-city2                  gc_tab
+    down_wa-street                 gc_tab
+    down_wa-house_num1             gc_tab
+    down_wa-building               gc_tab
+    down_wa-str_suppl1             gc_tab
+    down_wa-str_suppl2             gc_tab
+    down_wa-str_suppl3             gc_tab
+    down_wa-location               gc_tab
+    down_wa-zz_awqaf_no            gc_tab
+    down_wa-zz_previewer_notes     gc_tab
+    down_wa-zz_unit_num            gc_tab
+    down_wa-zz_electric_meternum   gc_tab
+    down_wa-zz_water_meter_num     gc_tab
+    down_wa-zz_apartment_num       gc_tab
+    down_wa-zz_basic_use           gc_tab
+    down_wa-zz_secondary_use       gc_tab
+    down_wa-zz_re_invested         gc_tab
+    down_wa-zz_chart_no            gc_tab
+    down_wa-zz_block_no            gc_tab
+    down_wa-zz_piece_no            gc_tab
+    down_wa-zz_rental_value        gc_tab
+    down_wa-zz_rentalval_surround  gc_tab
+    down_wa-zz_rentval_comparision gc_tab
+    down_wa-zz_rent_income_method  gc_tab
+    down_wa-zz_cost_rent_val       gc_tab
+    down_wa-fixfitcharact          gc_tab
+    down_wa-validfrom              gc_tab
+    down_wa-validto                gc_tab
+    down_wa-meas                   gc_tab
+    down_wa-measvalue              gc_tab
+    down_wa-prctr                  gc_tab
+    down_wa-error                  gc_crlf
+
+    INTO lv_string.
+
+  ENDLOOP.
+
+  TRY.
+      cl_bcs_convert=>string_to_solix(
+        EXPORTING
+          iv_string   = lv_string
+          iv_codepage = '4103'  "suitable for MS Excel, leave empty
+          iv_add_bom  = 'X'     "for other doc types
+        IMPORTING
+          et_solix  = binary_content
+          ev_size   = size ).
+    CATCH cx_bcs.
+      MESSAGE e445(so).
+  ENDTRY.
+
+
+
+ENDFORM.                    "create_content

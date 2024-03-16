@@ -1,0 +1,84 @@
+PROGRAM Y_TEST_UA_TEXTEDIT.
+
+   CONSTANTS: c_line_length TYPE i VALUE 72.
+
+  DATA:
+*   reference to wrapper class of control
+    g_editor TYPE REF TO cl_gui_textedit,
+*   reference to custom container: necessary to bind TextEdit Control
+    g_editor_container TYPE REF TO cl_gui_custom_container,
+    g_table1(c_line_length) TYPE c OCCURS 0,
+    ls_table like LINE OF g_table1,
+    g_mycontainer1(100) TYPE c,      " string for the containers
+    g_container1_linked TYPE i.     "#EC NEEDED
+
+
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'YPF0100'.
+  SET TITLEBAR 'YT0100'.
+
+ IF g_editor IS INITIAL.  " First time will be initial
+*   create control container
+    CREATE OBJECT g_editor_container
+      EXPORTING
+        container_name              = 'CC_TEXTEDITOR'
+      EXCEPTIONS
+        cntl_error                  = 1
+        cntl_system_error           = 2
+        create_error                = 3
+        lifetime_error              = 4
+        lifetime_dynpro_dynpro_link = 5.
+    IF sy-subrc NE 0.
+*      add your handling
+    ENDIF.
+    g_mycontainer1 = 'CC_TEXTEDITOR'.
+
+*   create calls constructor, which initializes, creats and links
+*   TextEdit Control
+    CREATE OBJECT g_editor
+          EXPORTING
+           parent = g_editor_container
+           wordwrap_mode =
+*             cl_gui_textedit=>wordwrap_off
+              cl_gui_textedit=>wordwrap_at_fixed_position
+*             cl_gui_textedit=>WORDWRAP_AT_WINDOWBORDER
+           wordwrap_position = c_line_length
+           wordwrap_to_linebreak_mode = cl_gui_textedit=>true.
+
+    REFRESH g_table1.  " to initialize table upon OK_CODE 'BACK' at PAI
+
+
+    CALL METHOD g_editor->set_toolbar_mode
+      EXPORTING
+        toolbar_mode = cl_gui_textedit=>false.
+    CALL METHOD g_editor->set_statusbar_mode
+      EXPORTING
+        statusbar_mode = cl_gui_textedit=>false.
+   ENDIF.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+
+  CASE sy-ucomm.
+
+  WHEN  'BACK'.
+      LEAVE PROGRAM.
+  WHEN 'EXIT'.
+      LEAVE PROGRAM.
+  WHEN 'CANCEL'.
+      LEAVE PROGRAM.
+  WHEN 'EXECUTE'.
+      " here you can call Adobe form
+
+  ENDCASE.
+
+ENDMODULE.

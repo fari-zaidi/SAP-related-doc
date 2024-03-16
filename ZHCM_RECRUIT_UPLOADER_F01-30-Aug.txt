@@ -1,0 +1,1666 @@
+*&---------------------------------------------------------------------*
+*& Include          ZHCM_RECRUIT_UPLOADER_F01
+*&---------------------------------------------------------------------*
+
+*&---------------------------------------------------------------------*
+*& Form GET_FILE
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM get_file .
+
+
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+      field_name    = 'P_FILE '
+    IMPORTING
+      file_name     = p_file.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form UPLOAD_DATA
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM upload_data .
+
+
+  IF NOT p_file IS INITIAL.
+    CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+      EXPORTING
+*       I_FIELD_SEPERATOR    = ','
+        i_line_header        = 'X'
+        i_tab_raw_data       = it_raw
+        i_filename           = p_file
+      TABLES
+        i_tab_converted_data = gt_tab[]
+      EXCEPTIONS
+        conversion_failed    = 1
+        OTHERS               = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+  ENDIF.
+
+
+ENDFORM.
+
+
+*&---------------------------------------------------------------------*
+*& Form CREATE_DATA
+*&---------------------------------------------------------------------*
+
+FORM create_data.
+ DATA :lv_folder TYPE soodk.
+
+
+  DATA: length  TYPE string,
+        val(11) TYPE c,
+        row     TYPE i,
+        mg      TYPE string,
+        num     TYPE i.
+  IF NOT gt_tab[] IS INITIAL.
+    MOVE gt_tab TO vt_tab.
+
+
+    DATA wa_pb0022 TYPE pb0022.
+    DATA wa_pb0022_1 TYPE pb0022.
+    DATA wa_pb0023 TYPE pb0023.
+    DATA wa_pb0023_1 TYPE pb0023.
+
+
+  SELECT * FROM t528t INTO TABLE @DATA(it_t528t) . "vacancy text
+  SELECT * FROM t528b INTO TABLE @DATA(it_t528b) . "vacancy available table
+  SELECT * FROM t513c INTO TABLE @DATA(it_t513c) .  "designation text
+  SELECT * FROM t518b INTO TABLE @DATA(it_t518b) .
+  SELECT * FROM t750b INTO TABLE @DATA(it_t750b) .
+  SELECT * FROM T522T INTO TABLE @DATA(IT_T522T) .
+  SELECT * FROM pb0105 INTO TABLE @DATA(it_pb0105) .
+  SELECT * FROM pb0002 INTO TABLE @DATA(it_pb0002) .
+  SELECT * FROM pb0022 INTO TABLE @DATA(it_pb0022) .
+  SELECT * FROM pb0023 INTO TABLE @DATA(it_pb0023) .
+  SELECT * FROM PB0185 INTO TABLE @DATA(IT_PB0185) .
+  SELECT * FROM PB4002 INTO TABLE @DATA(IT_PB4002) .
+
+    row = 1.
+    LOOP AT vt_tab[] INTO DATA(ls_tabb).
+      row = row + 1.
+
+      FREE: ls_bapiaplorg,
+         ls_bapiaplper,
+         ls_bapiapladr,
+         ls_bapiapplic,
+         ls_bapip0105b,
+         ls_bapihr0105,
+         ls_return,
+         ls_return2,
+       gv_applicant_no.
+
+      FREE: wa_bapivacass,
+           wa_bapieduc  ,
+           wa_bapiemploy.
+      FREE: it_bapivacass, it_bapieduc , it_bapiemploy.
+
+      ls_bapiaplorg-ap_group  = '1'.
+      ls_bapiaplorg-ap_subgrp  = '2'.
+      ls_bapiaplorg-pers_area  = '1000'.
+      ls_bapiaplorg-p_subarea  = '1100'.
+      ls_bapiaplorg-personnel  = 'FIS'.
+
+ READ TABLE IT_T522T INTO DATA(WA_T522T) WITH KEY sprsl = 'EN' atext = ls_tabb-title .
+        IF WA_T522T IS INITIAL.
+          MESSAGE w001(ztest) INTO mg WITH ls_tabb-title row. ""Invalid field value at row &.
+          wa_mg-mg = mg.
+          CLEAR mg.
+          APPEND wa_mg TO it_mg.
+        ENDIF.
+ ls_bapiaplper-foa_key    = WA_T522T-anred.
+down_wa-title = ls_tabb-title.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      ls_bapiaplper-f_name           =   ls_tabb-first_name .
+
+      IF ls_bapiaplper-f_name IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-first_name = ls_tabb-first_name.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      ls_bapiaplper-l_name               =   ls_tabb-last_name .
+
+      IF ls_bapiaplper-l_name IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-last_name = ls_tabb-last_name.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      IF  ls_tabb-dob IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-dob = ls_tabb-dob.
+      PERFORM f_convert_date_internal USING    ls_tabb-dob
+                                         CHANGING  ls_bapiaplper-b_date.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      ls_bapiaplper-birthname               =  ls_tabb-father_name.        " Mr., Prof, Dr. , etc
+      down_wa-father_name = ls_tabb-father_name.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      IF  ls_tabb-gender IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      IF ls_tabb-gender EQ 'Male' .
+        ls_bapiaplper-gender = '1'.
+      ELSEIF ls_tabb-gender EQ 'Female' .
+        ls_bapiaplper-gender = '2'.
+      ELSE.
+        ls_bapiaplper-gender = ''.
+      ENDIF.
+      down_wa-gender = ls_tabb-gender.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_bapiaplper-mar_stat               =  '0'.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_bapiaplper-nation               =   ls_tabb-nationality .
+      IF  ls_tabb-nationality IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-nationality = ls_tabb-nationality .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_bapiaplper-langu = 'EN'.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_bapiapladr-street = ls_tabb-address.
+      IF  ls_tabb-address IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-address = ls_tabb-address.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_bapiapladr-2nd_add_ln = ls_tabb-address_block.
+      down_wa-address_block = ls_tabb-address_block.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_bapiapladr-pcd_city = ls_tabb-postal_code.
+      IF NOT ls_tabb-postal_code CO '0123456789'.
+        MESSAGE w001(ztest) INTO mg WITH ls_tabb-postal_code row.  "Invalid field value at row &.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-postal_code = ls_tabb-postal_code.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_bapiapladr-city =  ls_tabb-city.
+      IF  ls_tabb-city IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-city = ls_tabb-city.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+
+      ls_bapiapladr-cntry              =   ls_tabb-nationality .
+      IF  ls_tabb-nationality IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_bapiapladr-tel_no             =   ls_tabb-tele_no .
+      IF  ls_tabb-tele_no IS INITIAL.
+*        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+*        wa_mg-mg = mg.
+*        CLEAR mg.
+*        APPEND wa_mg TO it_mg.
+      ENDIF.
+      IF NOT ls_tabb-tele_no CO '0123456789'.
+        MESSAGE w001(ztest) INTO mg WITH ls_tabb-tele_no row. "Invalid field value at row &.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+       down_wa-tele_no = ls_tabb-tele_no.    "down_wa-cell_no = ls_tabb-cell_no.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      READ TABLE it_t750b INTO DATA(wa_t750b) WITH KEY offid = ls_tabb-advert .
+      IF wa_t750b IS INITIAL.            "WITH ls_tabb-vacancy row
+        MESSAGE w001(ztest) INTO mg WITH ls_tabb-advert row. ""Invalid field value at row &.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      ls_bapiapplic-advert = wa_t750b-offid. "ADVERT
+      down_wa-advert = ls_tabb-advert.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      ls_bapip0105b-usertype = '0010'.
+
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      ls_bapihr0105-e_mail            =   ls_tabb-email .
+      IF ls_tabb-email IS INITIAL .
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-email = ls_tabb-email .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      IF ls_tabb-vacancy IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+
+      ELSE.
+
+**        READ TABLE it_t528t INTO DATA(wa_t528t) WITH KEY otype = 'S' sprsl = 'EN' plstx = ls_tabb-vacancy .
+**        IF wa_t528t IS INITIAL.
+**          MESSAGE w001(ztest) INTO mg WITH ls_tabb-vacancy row. ""Invalid field value at row &.
+**          wa_mg-mg = mg.
+**          CLEAR mg.
+**          APPEND wa_mg TO it_mg.
+**        ENDIF.
+
+        READ TABLE it_t528b INTO DATA(wa_t528b) WITH KEY otype = 'S' plans = ls_tabb-vacancy. "wa_t528t-plans .
+
+        IF wa_t528b IS INITIAL.
+          MESSAGE w003(ztest) INTO mg WITH row. "vacancy does not exist at row &.
+          wa_mg-mg = mg.
+          CLEAR mg.
+          APPEND wa_mg TO it_mg.
+
+        ELSE.
+          wa_bapivacass-vacancy            = wa_t528b-plans.
+          wa_bapivacass-va_status        = '1'.
+          wa_bapivacass-stat_rea        = '00'.
+          wa_bapivacass-priority =  '01'.
+        ENDIF.
+      ENDIF.
+*      READ TABLE it_t528t INTO DATA(wa_t528t) WITH KEY otype = 'S' sprsl = 'EN' plans = wa_t528b-plans .
+*      down_wa-vacancy = wa_t528t-plstx.
+      down_wa-vacancy = ls_tabb-vacancy.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      wa_bapieduc-educ_est          =   ls_tabb-education_type .
+      IF ls_tabb-education_type IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-education_type = ls_tabb-education_type .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      wa_bapieduc-certific          =   ls_tabb-certificate .
+      IF ls_tabb-certificate IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-certificate = ls_tabb-certificate .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      wa_bapieduc-institute            =   ls_tabb-text_edu_inst.
+      IF ls_tabb-text_edu_inst IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-text_edu_inst = ls_tabb-text_edu_inst.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      PERFORM f_convert_date_internal USING    ls_tabb-from_date_edu
+                                              CHANGING  wa_bapieduc-from_date.
+      IF ls_tabb-from_date_edu IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-from_date_edu = ls_tabb-from_date_edu.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      PERFORM f_convert_date_internal USING    ls_tabb-to_date_edu
+                                              CHANGING  wa_bapieduc-to_date.
+      IF  ls_tabb-to_date_edu IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-to_date_edu = ls_tabb-to_date_edu.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      wa_bapieduc-cntry          =  ls_tabb-institute_country .
+      down_wa-institute_country = ls_tabb-institute_country.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      wa_bapieduc-mark           =   ls_tabb-cgpa.
+      IF  ls_tabb-cgpa IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-cgpa =  ls_tabb-cgpa.
+
+
+*~~~~~~~~~~~$$$$$$$$$$$$$$$$$$$$$$$$$$$$~~~~~~~~BEGIN OF CODE ~~~~~~~~~~~~~~~~~$$$$$$$$$$$$$$$$$$$$$$$$$$$$~~~~~~~~~~~~~``
+*      |||||||||||||||||||||||||||||||||| MULTIPLE EDUCATION RECORD |||||||||||||||||||||||||||||
+
+      IF ls_tabb-education_type_2 IS NOT INITIAL.
+
+        APPEND wa_bapieduc  TO it_bapieduc.
+        CLEAR wa_bapieduc.
+
+
+        wa_bapieduc-certific           =   ls_tabb-certificate_2 .
+        down_wa-certificate_2 =  ls_tabb-certificate_2.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-institute            =   ls_tabb-text_edu_inst_2.
+        down_wa-text_edu_inst_2 =  ls_tabb-text_edu_inst_2.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        down_wa-from_date_edu_2 =  ls_tabb-from_date_edu_2.
+        PERFORM f_convert_date_internal USING    ls_tabb-from_date_edu_2
+                                                CHANGING  wa_bapieduc-from_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        down_wa-to_date_edu_2 =  ls_tabb-to_date_edu_2.
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_edu_2
+                                                CHANGING  wa_bapieduc-to_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+            wa_bapieduc-educ_est          =   ls_tabb-education_type_2 .
+            down_wa-education_type_2 =  ls_tabb-education_type_2.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-cntry          =  ls_tabb-institute_country_2 .
+        down_wa-institute_country_2 =  ls_tabb-institute_country_2.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-mark           =   ls_tabb-cgpa_2.
+        down_wa-cgpa_2 =  ls_tabb-cgpa_2.
+
+      ENDIF.
+
+      IF ls_tabb-education_type_3 IS NOT INITIAL.
+
+        APPEND wa_bapieduc  TO it_bapieduc.
+        CLEAR wa_bapieduc.
+        wa_bapieduc-certific           =   ls_tabb-certificate_3.
+        down_wa-certificate_3 =  ls_tabb-certificate_3.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-institute            =   ls_tabb-text_edu_inst_3.
+        down_wa-text_edu_inst_3 =  ls_tabb-text_edu_inst_3.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        down_wa-from_date_edu_3 =  ls_tabb-from_date_edu_3.
+        PERFORM f_convert_date_internal USING    ls_tabb-from_date_edu_3
+                                                CHANGING  wa_bapieduc-from_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        down_wa-to_date_edu_3 =  ls_tabb-to_date_edu_3.
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_edu_3
+                                                CHANGING  wa_bapieduc-to_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-educ_est          =   ls_tabb-education_type_3  .
+        down_wa-education_type_3 =  ls_tabb-education_type_3.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-cntry          =  ls_tabb-institute_country_3 .
+        down_wa-institute_country_3 =  ls_tabb-institute_country_3.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-mark           =   ls_tabb-cgpa_3.
+        down_wa-cgpa_3 =  ls_tabb-cgpa_3.
+
+      ELSE.
+      ENDIF.
+      IF ls_tabb-education_type_4 IS NOT INITIAL.
+
+        APPEND wa_bapieduc  TO it_bapieduc.
+        CLEAR wa_bapieduc.
+        wa_bapieduc-certific           =   ls_tabb-certificate_4.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-institute            =   ls_tabb-text_edu_inst_4.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-from_date_edu_4
+                                                CHANGING  wa_bapieduc-from_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_edu_4
+                                                CHANGING  wa_bapieduc-to_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-educ_est          =   ls_tabb-education_type_4 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-cntry          =  ls_tabb-institute_country_4 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-mark           =   ls_tabb-cgpa_4.
+
+ down_wa-certificate_4          =   ls_tabb-certificate_4.
+ down_wa-text_edu_inst_4        =   ls_tabb-text_edu_inst_4      .
+ down_wa-from_date_edu_4        =   ls_tabb-from_date_edu_4      .
+ down_wa-to_date_edu_4          =   ls_tabb-to_date_edu_4        .
+ down_wa-education_type_4       =   ls_tabb-education_type_4     .
+ down_wa-institute_country_4    =   ls_tabb-institute_country_4  .
+ down_wa-cgpa_4                 =   ls_tabb-cgpa_4               .
+
+
+      ELSE.
+      ENDIF.
+      IF ls_tabb-education_type_5 IS NOT INITIAL.
+
+        APPEND wa_bapieduc  TO it_bapieduc.
+        CLEAR wa_bapieduc.
+        wa_bapieduc-certific           = ls_tabb-certificate_5.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-institute            =   ls_tabb-text_edu_inst_5.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-from_date_edu_5
+                                                CHANGING  wa_bapieduc-from_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_edu_5
+                                                CHANGING  wa_bapieduc-to_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-educ_est          =  ls_tabb-education_type_5.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-cntry          =  ls_tabb-institute_country_5 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-mark           =   ls_tabb-cgpa_5.
+
+ down_wa-certificate_5          =   ls_tabb-certificate_5        .
+ down_wa-text_edu_inst_5        =   ls_tabb-text_edu_inst_5      .
+ down_wa-from_date_edu_5        =   ls_tabb-from_date_edu_5      .
+ down_wa-to_date_edu_5          =   ls_tabb-to_date_edu_5        .
+ down_wa-education_type_5       =   ls_tabb-education_type_5     .
+ down_wa-institute_country_5    =   ls_tabb-institute_country_5  .
+ down_wa-cgpa_5                 =   ls_tabb-cgpa_5               .
+
+
+      ELSE.
+      ENDIF.
+      IF ls_tabb-education_type_6 IS NOT INITIAL.
+
+        APPEND wa_bapieduc  TO it_bapieduc.
+        CLEAR wa_bapieduc.
+        wa_bapieduc-certific           =  ls_tabb-certificate_6.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-institute            =   ls_tabb-text_edu_inst_6.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-from_date_edu_6
+                                                CHANGING  wa_bapieduc-from_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_edu_6
+                                                CHANGING  wa_bapieduc-to_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-educ_est          =   ls_tabb-education_type_6 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-cntry          =  ls_tabb-institute_country_6 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-mark           =   ls_tabb-cgpa_6.
+down_wa-certificate_6          =   ls_tabb-certificate_6        .
+down_wa-text_edu_inst_6        =   ls_tabb-text_edu_inst_6      .
+down_wa-from_date_edu_6        =   ls_tabb-from_date_edu_6      .
+down_wa-to_date_edu_6          =   ls_tabb-to_date_edu_6        .
+down_wa-education_type_6       =   ls_tabb-education_type_6     .
+down_wa-institute_country_6    =   ls_tabb-institute_country_6  .
+down_wa-cgpa_6                 =   ls_tabb-cgpa_6               .
+
+
+
+      ELSE.
+      ENDIF.
+      IF ls_tabb-education_type_7 IS NOT INITIAL.
+
+        APPEND wa_bapieduc  TO it_bapieduc.
+        CLEAR wa_bapieduc.
+        wa_bapieduc-certific           =  ls_tabb-certificate_7.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-institute            =   ls_tabb-text_edu_inst_7.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-from_date_edu_7
+                                                CHANGING  wa_bapieduc-from_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_edu_7
+                                                CHANGING  wa_bapieduc-to_date.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-educ_est          =    ls_tabb-education_type_7.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-cntry          =  ls_tabb-institute_country_7 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapieduc-mark           =   ls_tabb-cgpa_7.
+down_wa-certificate_7          =   ls_tabb-certificate_7        .
+down_wa-text_edu_inst_7        =   ls_tabb-text_edu_inst_7      .
+down_wa-from_date_edu_7        =   ls_tabb-from_date_edu_7      .
+down_wa-to_date_edu_7          =   ls_tabb-to_date_edu_7        .
+down_wa-education_type_7       =   ls_tabb-education_type_7     .
+down_wa-institute_country_7    =   ls_tabb-institute_country_7  .
+down_wa-cgpa_7                 =   ls_tabb-cgpa_7               .
+
+
+      ELSE.
+      ENDIF.
+*~~~~~~~~~~~$$$$$$$$$$$$$$$$$$$$$$$$$$$$~~~~~~~~END OF CODE ~~~~~~~~~~~~~~~~~$$$$$$$$$$$$$$$$$$$$$$$$$$$$~~~~~~~~~~~~~``
+
+*******&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      wa_bapiemploy-employer            =   ls_tabb-prev_emp_name .
+      IF  ls_tabb-prev_emp_name IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-prev_emp_name = ls_tabb-prev_emp_name .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      PERFORM f_convert_date_internal USING     ls_tabb-from_date_prev_job
+                                          CHANGING  wa_bapiemploy-from_date.
+      IF ls_tabb-from_date_prev_job IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-from_date_prev_job = ls_tabb-from_date_prev_job.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      PERFORM f_convert_date_internal USING    ls_tabb-to_date_prev_job
+                                      CHANGING   wa_bapiemploy-to_date  .
+      IF ls_tabb-to_date_prev_job IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-to_date_prev_job = ls_tabb-to_date_prev_job.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      wa_bapiemploy-city      = ls_tabb-area_of_job.
+      IF ls_tabb-area_of_job IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      down_wa-area_of_job = ls_tabb-area_of_job.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+
+      wa_bapiemploy-cntry  = ls_tabb-prev_emp_country_key.
+     down_wa-prev_emp_country_key = ls_tabb-prev_emp_country_key.
+*~~~~~~~~~~~$$$$$$$$$$$$$$$$$$$$$$$$$$$$~~~~~~~~BEGIN OF CODE ~~~~~~~~~~~~~~~~~$$$$$$$$$$$$$$$$$$$$$$$$$$$$~~~~~~~~~~~~~``
+*      *      |||||||||||||||||||||||||||||||||| MULTIPLE PREVIOUS EMPLOYEE RECORD |||||||||||||||||||||||||||||
+      IF ls_tabb-prev_emp_name_2 IS NOT INITIAL .
+        APPEND wa_bapiemploy TO it_bapiemploy.
+        CLEAR wa_bapiemploy.
+        wa_bapiemploy-employer            =   ls_tabb-prev_emp_name_2 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING     ls_tabb-from_date_prev_job_2
+                                            CHANGING  wa_bapiemploy-from_date.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_prev_job_2
+                                        CHANGING   wa_bapiemploy-to_date  .
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-city      = ls_tabb-area_of_job_2.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+         wa_bapiemploy-cntry  = ls_tabb-prev_emp_country_key_2.
+       down_wa-prev_emp_name_2           =  ls_tabb-prev_emp_name_2          .
+       down_wa-from_date_prev_job_2      =  ls_tabb-from_date_prev_job_2     .
+       down_wa-to_date_prev_job_2        =  ls_tabb-to_date_prev_job_2       .
+       down_wa-area_of_job_2             =  ls_tabb-area_of_job_2            .
+       down_wa-prev_emp_country_key_2    =  ls_tabb-prev_emp_country_key_2   .
+
+
+      ENDIF.
+      IF ls_tabb-prev_emp_name_3 IS NOT INITIAL .
+        APPEND wa_bapiemploy TO it_bapiemploy.
+        CLEAR wa_bapiemploy.
+        wa_bapiemploy-employer            =   ls_tabb-prev_emp_name_3 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING     ls_tabb-from_date_prev_job_3
+                                            CHANGING  wa_bapiemploy-from_date.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_prev_job_3
+                                        CHANGING   wa_bapiemploy-to_date  .
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-city      = ls_tabb-area_of_job_3.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-cntry  = ls_tabb-prev_emp_country_key_3.
+       down_wa-prev_emp_name_3           =  ls_tabb-prev_emp_name_3          .
+       down_wa-from_date_prev_job_3      =  ls_tabb-from_date_prev_job_3     .
+       down_wa-to_date_prev_job_3        =  ls_tabb-to_date_prev_job_3       .
+       down_wa-area_of_job_3             =  ls_tabb-area_of_job_3            .
+       down_wa-prev_emp_country_key_3    =  ls_tabb-prev_emp_country_key_3   .
+
+      ENDIF.
+      IF ls_tabb-prev_emp_name_4 IS NOT INITIAL .
+        APPEND wa_bapiemploy TO it_bapiemploy.
+        CLEAR wa_bapiemploy.
+        wa_bapiemploy-employer            =   ls_tabb-prev_emp_name_4 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING     ls_tabb-from_date_prev_job_4
+                                            CHANGING  wa_bapiemploy-from_date.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_prev_job_4
+                                        CHANGING   wa_bapiemploy-to_date  .
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-city      = ls_tabb-area_of_job_4.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-cntry  = ls_tabb-prev_emp_country_key_4.
+         down_wa-prev_emp_name_4           =  ls_tabb-prev_emp_name_4          .
+       down_wa-from_date_prev_job_4      =  ls_tabb-from_date_prev_job_4     .
+       down_wa-to_date_prev_job_4        =  ls_tabb-to_date_prev_job_4       .
+       down_wa-area_of_job_4             =  ls_tabb-area_of_job_4            .
+       down_wa-prev_emp_country_key_4    =  ls_tabb-prev_emp_country_key_4   .
+      ENDIF.
+      IF ls_tabb-prev_emp_name_5 IS NOT INITIAL .
+        APPEND wa_bapiemploy TO it_bapiemploy.
+        CLEAR wa_bapiemploy.
+        wa_bapiemploy-employer            =   ls_tabb-prev_emp_name_5 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING     ls_tabb-from_date_prev_job_5
+                                            CHANGING  wa_bapiemploy-from_date.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_prev_job_5
+                                        CHANGING   wa_bapiemploy-to_date  .
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-city      = ls_tabb-area_of_job_5.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-cntry  = ls_tabb-prev_emp_country_key_5.
+         down_wa-prev_emp_name_5           =  ls_tabb-prev_emp_name_5          .
+       down_wa-from_date_prev_job_5      =  ls_tabb-from_date_prev_job_5     .
+       down_wa-to_date_prev_job_5        =  ls_tabb-to_date_prev_job_5       .
+       down_wa-area_of_job_5             =  ls_tabb-area_of_job_5            .
+       down_wa-prev_emp_country_key_5    =  ls_tabb-prev_emp_country_key_5   .
+      ENDIF.
+      IF ls_tabb-prev_emp_name_6 IS NOT INITIAL .
+        APPEND wa_bapiemploy TO it_bapiemploy.
+        CLEAR wa_bapiemploy.
+        wa_bapiemploy-employer            =   ls_tabb-prev_emp_name_6 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING     ls_tabb-from_date_prev_job_6
+                                            CHANGING  wa_bapiemploy-from_date.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_prev_job_6
+                                        CHANGING   wa_bapiemploy-to_date  .
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-city      = ls_tabb-area_of_job_6.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-cntry  = ls_tabb-prev_emp_country_key_6.
+         down_wa-prev_emp_name_6           =  ls_tabb-prev_emp_name_6          .
+       down_wa-from_date_prev_job_6      =  ls_tabb-from_date_prev_job_6     .
+       down_wa-to_date_prev_job_6        =  ls_tabb-to_date_prev_job_6       .
+       down_wa-area_of_job_6             =  ls_tabb-area_of_job_6            .
+       down_wa-prev_emp_country_key_6    =  ls_tabb-prev_emp_country_key_6   .
+      ENDIF.
+      IF ls_tabb-prev_emp_name_7 IS NOT INITIAL .
+        APPEND wa_bapiemploy TO it_bapiemploy.
+        CLEAR wa_bapiemploy.
+        wa_bapiemploy-employer            =   ls_tabb-prev_emp_name_7 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING     ls_tabb-from_date_prev_job_7
+                                            CHANGING  wa_bapiemploy-from_date.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_prev_job_7
+                                        CHANGING   wa_bapiemploy-to_date  .
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-city      = ls_tabb-area_of_job_7.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+**        READ TABLE it_t513c INTO wa_t513c WITH KEY spras = 'EN' ltext = ls_tabb-designation_7 .
+**
+**        IF wa_t513c IS INITIAL.
+**          MESSAGE w001(ztest) INTO mg WITH ls_tabb-designation_7 row. "Invalid field value at row &..
+**          wa_mg-mg = mg.
+**          CLEAR mg.
+**          APPEND wa_mg TO it_mg.
+**        ENDIF.
+**        wa_bapiemploy-job    = wa_t513c-taete.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-cntry  = ls_tabb-prev_emp_country_key_7.
+         down_wa-prev_emp_name_7           =  ls_tabb-prev_emp_name_7          .
+       down_wa-from_date_prev_job_7      =  ls_tabb-from_date_prev_job_7     .
+       down_wa-to_date_prev_job_7        =  ls_tabb-to_date_prev_job_7       .
+       down_wa-area_of_job_7             =  ls_tabb-area_of_job_7            .
+       down_wa-prev_emp_country_key_7    =  ls_tabb-prev_emp_country_key_7   .
+      ENDIF.
+      IF ls_tabb-prev_emp_name_8 IS NOT INITIAL .
+        APPEND wa_bapiemploy TO it_bapiemploy.
+        CLEAR wa_bapiemploy.
+**        CLEAR wa_t513c.
+        wa_bapiemploy-employer            =   ls_tabb-prev_emp_name_8 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING     ls_tabb-from_date_prev_job_8
+                                            CHANGING  wa_bapiemploy-from_date.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_prev_job_8
+                                        CHANGING   wa_bapiemploy-to_date  .
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-city      = ls_tabb-area_of_job_8.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-cntry  = ls_tabb-prev_emp_country_key_8.
+         down_wa-prev_emp_name_8           =  ls_tabb-prev_emp_name_8          .
+       down_wa-from_date_prev_job_8      =  ls_tabb-from_date_prev_job_8     .
+       down_wa-to_date_prev_job_8        =  ls_tabb-to_date_prev_job_8       .
+       down_wa-area_of_job_8             =  ls_tabb-area_of_job_8            .
+       down_wa-prev_emp_country_key_8    =  ls_tabb-prev_emp_country_key_8   .
+      ENDIF.
+      IF ls_tabb-prev_emp_name_9 IS NOT INITIAL .
+        APPEND wa_bapiemploy TO it_bapiemploy.
+        CLEAR wa_bapiemploy.
+        wa_bapiemploy-employer            =   ls_tabb-prev_emp_name_9 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING     ls_tabb-from_date_prev_job_9
+                                            CHANGING  wa_bapiemploy-from_date.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_prev_job_9
+                                        CHANGING   wa_bapiemploy-to_date  .
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-city      = ls_tabb-area_of_job_9.
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-cntry  = ls_tabb-prev_emp_country_key_9.
+         down_wa-prev_emp_name_9           =  ls_tabb-prev_emp_name_9          .
+       down_wa-from_date_prev_job_9      =  ls_tabb-from_date_prev_job_9     .
+       down_wa-to_date_prev_job_9        =  ls_tabb-to_date_prev_job_9       .
+       down_wa-area_of_job_9             =  ls_tabb-area_of_job_9            .
+       down_wa-prev_emp_country_key_9    =  ls_tabb-prev_emp_country_key_9   .
+      ENDIF.
+      IF ls_tabb-prev_emp_name_10 IS NOT INITIAL .
+        APPEND wa_bapiemploy TO it_bapiemploy.
+        CLEAR wa_bapiemploy.
+        wa_bapiemploy-employer            =   ls_tabb-prev_emp_name_10 .
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING     ls_tabb-from_date_prev_job_10
+                                            CHANGING  wa_bapiemploy-from_date.
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        PERFORM f_convert_date_internal USING    ls_tabb-to_date_prev_job_10
+                                        CHANGING   wa_bapiemploy-to_date  .
+*********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-city      = ls_tabb-area_of_job_10.
+
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+        wa_bapiemploy-cntry  = ls_tabb-prev_emp_country_key_10.
+         down_wa-prev_emp_name_10           =  ls_tabb-prev_emp_name_10          .
+       down_wa-from_date_prev_job_10      =  ls_tabb-from_date_prev_job_10     .
+       down_wa-to_date_prev_job_10        =  ls_tabb-to_date_prev_job_10       .
+       down_wa-area_of_job_10             =  ls_tabb-area_of_job_10            .
+       down_wa-prev_emp_country_key_10    =  ls_tabb-prev_emp_country_key_10   .
+      ENDIF.
+*~~~~~~~~~~~$$$$$$$$$$$$$$$$$$$$$$$$$$$$~~~~~~~~END OF CODE ~~~~~~~~~~~~~~~~~$$$$$$$$$$$$$$$$$$$$$$$$$$$$~~~~~~~~~~~~~``
+********^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>^^<>^<>^<>^<>^<>^<>^<>^<>^<>^<>
+      IF wa_bapivacass IS NOT INITIAL.
+        APPEND wa_bapivacass TO it_bapivacass.
+      ENDIF.
+
+      APPEND wa_bapieduc  TO it_bapieduc.
+      APPEND wa_bapiemploy TO it_bapiemploy.
+SELECT * FROM PB0185 INTO TABLE @Data(it_app) WHERE icnum = @ls_tabb-ssn AND ictyp = 'N1'.
+*READ TABLE it_pb0185 INTO it_app WITH KEY icnum = ls_tabb-ssn ictyp = 'N1'.
+  loop at it_app INTO DATA(lv_app).
+READ TABLE it_pb4002 INTO DATA(lv_vac) WITH KEY PERNR = lv_app-pernr .
+    if lv_vac-OBJID eq ls_tabb-vacancy.
+      data(flag) = 1.
+      endif.
+      endloop.
+
+* IF lv_app IS INITIAL or ( lv_app-icnum = ls_tabb-ssn AND lv_vac-OBJID ne ls_tabb-vacancy ).
+if it_app IS INITIAL or flag ne '1'.
+
+        CALL FUNCTION 'BAPI_APPLICANT_CREATE'
+          EXPORTING
+            ap_group            = ls_bapiaplorg-ap_group
+            ap_subgrp           = ls_bapiaplorg-ap_subgrp
+            pers_area           = ls_bapiaplorg-pers_area
+            p_subarea           = ls_bapiaplorg-p_subarea
+            personnel           = ls_bapiaplorg-personnel
+            foa_key             = ls_bapiaplper-foa_key
+            f_name              = ls_bapiaplper-f_name
+            l_name              = ls_bapiaplper-l_name
+            ssn                 = ls_bapiaplper-ssn
+            b_date              = ls_bapiaplper-b_date
+            title               = ls_bapiaplper-title
+            gender              = ls_bapiaplper-gender
+            mar_stat            = ls_bapiaplper-mar_stat
+            nation              = ls_bapiaplper-nation
+            langu               = ls_bapiaplper-langu
+            street              = ls_bapiapladr-street
+            2nd_add_ln          = ls_bapiapladr-2nd_add_ln
+            city                = ls_bapiapladr-city
+            pcd_city            = ls_bapiapladr-pcd_city
+            cntry               = ls_bapiapladr-cntry
+            tel_no              = ls_bapiapladr-tel_no
+            advert              = ls_bapiapplic-advert
+            communication_type  = ls_bapip0105b-usertype
+            e_mail              = ls_bapihr0105-e_mail
+          IMPORTING
+            applicantnumber     = gv_applicant_no
+            return              = ls_return
+            return2             = ls_return2
+          TABLES
+            education           = it_bapieduc
+            previous_employment = it_bapiemploy
+            vacancy_assignment  = it_bapivacass.
+
+IF NOT gv_applicant_no IS INITIAL.
+
+Data(iv_title) = 'PICTURE'.
+Data(iv_url) = ls_tabb-pic_url.
+perform create_gos_url USING iv_title iv_url .
+down_wa-pic_url   =  ls_tabb-pic_url  .
+clear iv_title.
+CLEAR iv_url.
+
+
+iv_title = 'CV'.
+iv_url = ls_tabb-cv_url.
+perform create_gos_url USING iv_title iv_url .
+down_wa-cv_url   =  ls_tabb-cv_url  .
+endif.
+      ELSE.
+
+        MESSAGE w004(ztest) INTO mg WITH row. "Applicant's ssn already exist at row &.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%%
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%%
+      down_wa-applicant_no  = gv_applicant_no .
+      down_wa-edu_training_text = ls_tabb-edu_training_text.
+      down_wa-years_of_edu   = ls_tabb-years_of_edu.
+
+      IF ls_return-message IS NOT INITIAL .
+        MOVE ls_return-message TO wa_mg-mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+
+      IF NOT gv_applicant_no IS INITIAL.
+
+        IF  ls_tabb-ssn IS INITIAL.
+        MESSAGE w000(ztest) INTO mg WITH row. "Field value at row & cannot be empty please assign value.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+      IF NOT ls_tabb-ssn CO '0123456789'.
+        MESSAGE w001(ztest) INTO mg WITH ls_tabb-ssn row . "Invalid field value & at row &.
+        wa_mg-mg = mg.
+        CLEAR mg.
+        APPEND wa_mg TO it_mg.
+      ENDIF.
+
+        if ls_tabb-ssn IS NOT INITIAL.
+           read TABLE it_pb0185 INTO DATA(wa_pb0185) WITH KEY ictyp = 'N1' pernr = gv_applicant_no endda = '99991231' .
+        if wa_pb0185 IS NOT INITIAL.
+           wa_pb0185-icnum = ls_tabb-ssn.
+           down_wa-ssn =  ls_tabb-ssn.
+*      if wa_pb0185 IS NOT INITIAL.
+      MODIFY pb0185 FROM wa_pb0185.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+        endif.
+         if wa_pb0185 IS INITIAL.
+             SELECT SINGLE * FROM PB0002 INTO @Data(wa2_pb002) WHERE pernr eq @gv_applicant_no.
+             wa_pb0185-PERNR  = gv_applicant_no.
+             wa_pb0185-SUBTY  = 'N1'.
+             wa_pb0185-ENDDA  = wa2_pb002-endda.
+             wa_pb0185-BEGDA  = wa2_pb002-begda.
+             wa_pb0185-aedtm  = wa2_pb002-aedtm.
+             wa_pb0185-UNAME  = wa2_pb002-uname.
+             wa_pb0185-ICTYP  = 'N1'.
+             wa_pb0185-ICNUM  = ls_tabb-ssn.
+             insert pb0185 FROM wa_pb0185.
+              down_wa-ssn =  ls_tabb-ssn.
+             endif.
+             CLEAR wa2_pb002.
+       clear wa_pb0185.
+      endif.
+
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+        if ls_tabb-cell_no IS NOT INITIAL.
+          SELECT SINGLE * FROM pb0105 INTO @Data(wa_pb0105)
+                 WHERE  pernr EQ @gv_applicant_no.
+
+       wa_pb0105-pernr = gv_applicant_no.
+        wa_pb0105-subty = 'CELL'.
+        wa_pb0105-usrty = 'CELL'.
+        wa_pb0105-usrid_long = ''.
+        wa_pb0105-usrid = ls_tabb-cell_no.
+down_wa-cell_no =  ls_tabb-cell_no.
+
+        insert pb0105 FROM wa_pb0105.
+         .
+        endif.
+
+        if ls_tabb-skype_id IS NOT INITIAL.
+
+        wa_pb0105-pernr = gv_applicant_no.
+        wa_pb0105-subty = 'SKYP'.
+        wa_pb0105-usrty = 'SKYP'.
+        wa_pb0105-usrid_long = ''.
+        wa_pb0105-usrid = ls_tabb-skype_id.
+down_wa-skype_id = ls_tabb-skype_id.
+
+        insert pb0105 FROM wa_pb0105.
+        clear  wa_pb0105.
+          endif.
+          if ls_tabb-last_drawn_salary is NOT INITIAL .
+ SELECT SINGLE * FROM pb0023 WHERE pernr EQ @gv_applicant_no
+                AND SEQNR eq '000'
+                AND begda EQ @wa_bapiemploy-from_date
+                AND endda EQ @wa_bapiemploy-to_date
+                 INTO @wa_pb0023.
+wa_pb0023-LAST_DRAWN_SALARY = ls_tabb-last_drawn_salary.
+down_wa-last_drawn_salary = ls_tabb-last_drawn_salary.
+
+ if  ls_tabb-prev_emp_name_2 IS INITIAL AND ls_tabb-prev_emp_name IS NOT INITIAL.
+wa_pb0023-designation = ls_tabb-designation.
+down_wa-designation = ls_tabb-designation.
+endif.
+MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+       clear wa_pb0023.
+            endif.
+
+
+            if ls_tabb-disability IS NOT INITIAL.
+SELECT SINGLE * FROM pb0002 INTO @DATA(wa_pb0002) WHERE pernr eq @gv_applicant_no.
+wa_pb0002-disability   = ls_tabb-disability.
+wa_pb0002-present_city = ls_tabb-present_residing_city.
+down_wa-disability  = ls_tabb-disability.
+down_wa-present_residing_city  = ls_tabb-present_residing_city.
+MODIFY pb0002 FROM wa_pb0002.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+              endif.
+
+
+
+
+
+
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%%
+
+       if  ls_tabb-education_type_2 IS INITIAL.
+
+        SELECT SINGLE * FROM pb0022 INTO CORRESPONDING FIELDS OF wa_pb0022_1
+                 WHERE  pernr EQ gv_applicant_no
+                 AND    begda EQ wa_bapieduc-from_date
+                 AND endda EQ  wa_bapieduc-to_date.
+        wa_pb0022 = wa_pb0022_1  .
+        READ TABLE it_t518b INTO DATA(wa_t518b) WITH KEY langu = 'EN' atext = ls_tabb-edu_training_text .
+
+        IF wa_t518b IS INITIAL.
+          MESSAGE w002(ztest) INTO mg WITH row. "Invalid Edu/Traning text at row &.
+          wa_mg-mg = mg.
+          CLEAR mg.
+          APPEND wa_mg TO it_mg.
+        ENDIF.
+        wa_pb0022-ausbi    = wa_t518b-ausbi.
+        wa_pb0022-degree_title = ls_tabb-edu_training_text.
+        wa_pb0022-anzkl    = ls_tabb-years_of_edu.
+        down_wa-years_of_edu  = ls_tabb-years_of_edu.
+
+
+        MODIFY pb0022 FROM wa_pb0022.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+
+        clear wa_pb0022_1.
+        clear wa_pb0022.
+        clear wa_t518b.
+
+        else.
+
+          SELECT * FROM pb0022
+                 WHERE  pernr EQ @gv_applicant_no
+            INTO TABLE @Data(it2_pb0022).
+clear wa_pb0022.
+loop at it2_pb0022 INTO wa_pb0022.
+
+  if wa_pb0022-slart eq ls_tabb-education_type.
+   READ TABLE it_t518b INTO wa_t518b WITH KEY langu = 'EN' atext = ls_tabb-edu_training_text .
+
+
+        IF wa_t518b IS INITIAL.
+          MESSAGE w002(ztest) INTO mg WITH row. "Invalid Edu/Traning text at row &.
+          wa_mg-mg = mg.
+          CLEAR mg.
+          APPEND wa_mg TO it_mg.
+        ENDIF.
+        wa_pb0022-ausbi    = wa_t518b-ausbi.
+        wa_pb0022-degree_title = ls_tabb-edu_training_text.
+        wa_pb0022-anzkl    = ls_tabb-years_of_edu.
+
+
+        MODIFY pb0022 FROM wa_pb0022.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+       clear wa_t518b.
+  endif.
+  if wa_pb0022-slart eq ls_tabb-education_type_2.
+   READ TABLE it_t518b INTO wa_t518b WITH KEY langu = 'EN' atext = ls_tabb-edu_training_text_2 .
+
+
+        IF wa_t518b IS INITIAL.
+          MESSAGE w002(ztest) INTO mg WITH row. "Invalid Edu/Traning text at row &.
+          wa_mg-mg = mg.
+          CLEAR mg.
+          APPEND wa_mg TO it_mg.
+        ENDIF.
+        wa_pb0022-ausbi    = wa_t518b-ausbi.
+        wa_pb0022-degree_title = ls_tabb-edu_training_text_2.
+        wa_pb0022-anzkl    = ls_tabb-years_of_edu_2.
+down_wa-years_of_edu_2  = ls_tabb-years_of_edu_2.
+down_wa-edu_training_text_2 = ls_tabb-edu_training_text_2 .
+
+        MODIFY pb0022 FROM wa_pb0022.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+       clear wa_t518b.
+  endif.
+        if wa_pb0022-slart eq ls_tabb-education_type_3.
+   READ TABLE it_t518b INTO wa_t518b WITH KEY langu = 'EN' atext = ls_tabb-edu_training_text_3 .
+
+        IF wa_t518b IS INITIAL.
+          MESSAGE w002(ztest) INTO mg WITH row. "Invalid Edu/Traning text at row &.
+          wa_mg-mg = mg.
+          CLEAR mg.
+          APPEND wa_mg TO it_mg.
+        ENDIF.
+        wa_pb0022-ausbi    = wa_t518b-ausbi.
+        wa_pb0022-degree_title = ls_tabb-edu_training_text_3.
+        wa_pb0022-anzkl    = ls_tabb-years_of_edu_3.
+        down_wa-years_of_edu_3  = ls_tabb-years_of_edu_3.
+        down_wa-edu_training_text_3 = ls_tabb-edu_training_text_3 .
+
+        MODIFY pb0022 FROM wa_pb0022.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+
+        clear wa_t518b.
+        endif.
+        if wa_pb0022-slart eq ls_tabb-education_type_4.
+   READ TABLE it_t518b INTO wa_t518b WITH KEY langu = 'EN' atext = ls_tabb-edu_training_text_4 .
+
+        IF wa_t518b IS INITIAL.
+          MESSAGE w002(ztest) INTO mg WITH row. "Invalid Edu/Traning text at row &.
+          wa_mg-mg = mg.
+          CLEAR mg.
+          APPEND wa_mg TO it_mg.
+        ENDIF.
+        wa_pb0022-ausbi    = wa_t518b-ausbi.
+        wa_pb0022-degree_title = ls_tabb-edu_training_text_4.
+        wa_pb0022-anzkl    = ls_tabb-years_of_edu_4.
+        down_wa-years_of_edu_4  = ls_tabb-years_of_edu_4.
+        down_wa-edu_training_text_4 = ls_tabb-edu_training_text_4 .
+
+        MODIFY pb0022 FROM wa_pb0022.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+
+        clear wa_t518b.
+        endif.
+        if wa_pb0022-slart eq ls_tabb-education_type_5.
+   READ TABLE it_t518b INTO wa_t518b WITH KEY langu = 'EN' atext = ls_tabb-edu_training_text_5 .
+
+        IF wa_t518b IS INITIAL.
+          MESSAGE w002(ztest) INTO mg WITH row. "Invalid Edu/Traning text at row &.
+          wa_mg-mg = mg.
+          CLEAR mg.
+          APPEND wa_mg TO it_mg.
+        ENDIF.
+        wa_pb0022-ausbi    = wa_t518b-ausbi.
+        wa_pb0022-degree_title = ls_tabb-edu_training_text_5.
+        wa_pb0022-anzkl    = ls_tabb-years_of_edu_5.
+        down_wa-years_of_edu_5  = ls_tabb-years_of_edu_5.
+        down_wa-edu_training_text_5 = ls_tabb-edu_training_text_5 .
+
+        MODIFY pb0022 FROM wa_pb0022.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+
+        clear wa_t518b.
+        endif.
+        if wa_pb0022-slart eq ls_tabb-education_type_6.
+   READ TABLE it_t518b INTO wa_t518b WITH KEY langu = 'EN' atext = ls_tabb-edu_training_text_6 .
+
+        IF wa_t518b IS INITIAL.
+          MESSAGE w002(ztest) INTO mg WITH row. "Invalid Edu/Traning text at row &.
+          wa_mg-mg = mg.
+          CLEAR mg.
+          APPEND wa_mg TO it_mg.
+        ENDIF.
+        wa_pb0022-ausbi    = wa_t518b-ausbi.
+        wa_pb0022-degree_title = ls_tabb-edu_training_text_6.
+        wa_pb0022-anzkl    = ls_tabb-years_of_edu_6.
+        down_wa-years_of_edu_6  = ls_tabb-years_of_edu_6.
+        down_wa-edu_training_text_6 = ls_tabb-edu_training_text_6 .
+
+
+        MODIFY pb0022 FROM wa_pb0022.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+
+        clear wa_t518b.
+        endif.
+        if wa_pb0022-slart eq ls_tabb-education_type_7.
+   READ TABLE it_t518b INTO wa_t518b WITH KEY langu = 'EN' atext = ls_tabb-edu_training_text_7 .
+
+        IF wa_t518b IS INITIAL.
+          MESSAGE w002(ztest) INTO mg WITH row. "Invalid Edu/Traning text at row &.
+          wa_mg-mg = mg.
+          CLEAR mg.
+          APPEND wa_mg TO it_mg.
+        ENDIF.
+        wa_pb0022-ausbi    = wa_t518b-ausbi.
+        wa_pb0022-degree_title = ls_tabb-edu_training_text_7.
+        wa_pb0022-anzkl    = ls_tabb-years_of_edu_7.
+        down_wa-years_of_edu_7  = ls_tabb-years_of_edu_7.
+        down_wa-edu_training_text_7 = ls_tabb-edu_training_text_7 .
+
+
+        MODIFY pb0022 FROM wa_pb0022.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+
+        clear wa_t518b.
+        endif.
+
+endloop.
+endif.
+
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%%
+
+       if  ls_tabb-prev_emp_name_2 IS NOT INITIAL.
+
+          SELECT * FROM pb0023
+                 WHERE  pernr EQ @gv_applicant_no
+            INTO TABLE @Data(it2_pb0023).
+clear wa_pb0023.
+SORT it2_pb0023 ASCENDING BY SEQNR.
+loop at it2_pb0023 INTO wa_pb0023.
+
+if sy-tabix = 1.
+      wa_pb0023-DESIGNATION = ls_tabb-designation.
+       MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+
+ elseif sy-tabix = 2.
+       wa_pb0023-DESIGNATION = ls_tabb-designation_2.
+       down_wa-designation_2  = ls_tabb-designation_2.
+        MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+ elseif sy-tabix = 3.
+          wa_pb0023-DESIGNATION = ls_tabb-designation_3.
+          down_wa-designation_3  = ls_tabb-designation_3.
+           MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+ elseif  sy-tabix = 4.
+          wa_pb0023-DESIGNATION = ls_tabb-designation_4.
+          down_wa-designation_4  = ls_tabb-designation_4.
+           MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+ elseif sy-tabix = 5.
+          wa_pb0023-DESIGNATION = ls_tabb-designation_5.
+          down_wa-designation_5  = ls_tabb-designation_5.
+           MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+ elseif sy-tabix = 6.
+             wa_pb0023-DESIGNATION = ls_tabb-designation_6.
+             down_wa-designation_6  = ls_tabb-designation_6.
+           MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+elseif sy-tabix = 7.
+            wa_pb0023-DESIGNATION = ls_tabb-designation_7.
+            down_wa-designation_7  = ls_tabb-designation_7.
+           MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+ elseif sy-tabix = 8.
+            wa_pb0023-DESIGNATION = ls_tabb-designation_8.
+            down_wa-designation_8  = ls_tabb-designation_8.
+           MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+  elseif sy-tabix = 9.
+            wa_pb0023-DESIGNATION = ls_tabb-designation_9.
+            down_wa-designation_9  = ls_tabb-designation_9.
+           MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+  else.
+     sy-tabix = 10.
+            wa_pb0023-DESIGNATION = ls_tabb-designation_10.
+            down_wa-designation_10  = ls_tabb-designation_10.
+           MODIFY pb0023 FROM wa_pb0023.
+        COMMIT WORK.
+        WAIT UP TO 1 SECONDS.
+
+  endif.
+
+endloop.
+endif.
+
+clear it_mg.
+
+
+      ENDIF.
+
+
+
+      FREE: ls_bapiaplorg,
+              ls_bapiaplper,
+              ls_bapiapladr,
+              ls_bapiapplic,
+              ls_bapip0105b,
+              ls_bapihr0105,
+              ls_return,
+              ls_return2,
+              gv_applicant_no.
+
+
+      FREE: wa_bapivacass,
+            wa_bapieduc  ,
+            wa_bapiemploy,
+*            wa_t528t,
+            wa_t522t,
+            wa_t528b,
+*            wa_t528b,
+            "WA_T519T,
+**            wa_t513c,
+            wa_t518b.
+
+      FREE: it_bapivacass, it_bapieduc , it_bapiemploy.
+      LOOP AT it_mg INTO wa_mg.
+        CONCATENATE wa_mg-mg ',' down_wa-error_msg INTO down_wa-error_msg SEPARATED BY space.
+      ENDLOOP.
+*  down_wa-error_msg = wa_mg-mg.
+      APPEND down_wa TO down_tab.
+*        clear down_wa.
+*        endloop.
+
+      FREE: down_wa , wa_mg , it_mg, lv_app, lv_vac, it_app, flag.
+
+    ENDLOOP.
+  ENDIF.
+
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& FIELD CATALOG
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+
+"FIELD CATALOG itab declaration
+"type group is SLIS, which contains all the user-defined types for developing ALV reports.
+TYPE-POOLS slis . "TO USE FIELD CATALOG WE HAVE TO INCLUDE SLIS TYPE-POOLS- a keyword which is used to assign the type-group to a ALV report
+*DATA : it_fcat TYPE slis_t_fieldcat_alv . "INTERNAL TABLE FOR FIELD CATALOG
+*DATA : wa_fcat TYPE slis_fieldcat_alv  .  " WORK AREA FOR FIELD CATLOG
+DATA: IT_FCAT   TYPE SLIS_T_FIELDCAT_ALV,
+      WA_FCAT   TYPE SLIS_FIELDCAT_ALV,
+      GS_LAYOUT TYPE SLIS_LAYOUT_ALV.
+
+FORM display_data.
+  PERFORM create_fcat .
+
+*  *    */.. Call ALV Output Function
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      it_fieldcat   = IT_FCAT
+    TABLES
+      t_outtab      = DOWN_TAB
+    EXCEPTIONS
+      program_error = 1
+      OTHERS        = 2.
+*  ENDIF.
+
+ENDFORM.
+"FIELD CATALOG
+FORM create_fcat .
+
+IT_FCAT = VALUE SLIS_T_FIELDCAT_ALV(
+
+  ( FIELDNAME = 'APPLICANT_NO'                 TABNAME = 'DOWN_TAB' SELTEXT_M = 'APPLICANT NUMBER'           )
+  ( FIELDNAME = 'TITLE'                        TABNAME = 'DOWN_TAB' SELTEXT_M = 'TITLE'              )
+  ( FIELDNAME = 'FIRST_NAME'                   TABNAME = 'DOWN_TAB' SELTEXT_M = 'FIRST NAME'                 )
+  ( FIELDNAME = 'LAST_NAME'                    TABNAME = 'DOWN_TAB' SELTEXT_M = 'LAST_NAME'          )
+  ( FIELDNAME = 'FATHER_NAME'                  TABNAME = 'DOWN_TAB' SELTEXT_M = 'FATHER NAME'              )
+  ( FIELDNAME = 'DOB'                          TABNAME = 'DOWN_TAB' SELTEXT_M = 'DATE OF BIRTH'           )
+  ( FIELDNAME = 'SSN'                          TABNAME = 'DOWN_TAB' SELTEXT_M = 'SSN'               )
+  ( FIELDNAME = 'GENDER'                       TABNAME = 'DOWN_TAB' SELTEXT_M = 'GENDER'              )
+  ( FIELDNAME = 'NATIONALITY'                  TABNAME = 'DOWN_TAB' SELTEXT_M = 'NATIONALITY'            )
+  ( FIELDNAME = 'ADDRESS'                      TABNAME = 'DOWN_TAB' SELTEXT_M = 'ADDRESS'                )
+  ( FIELDNAME = 'ADDRESS_BLOCK'                TABNAME = 'DOWN_TAB' SELTEXT_M = 'ADDRESS Block'                )
+  ( FIELDNAME = 'POSTAL_CODE'                  TABNAME = 'DOWN_TAB' SELTEXT_M = 'POSTAL CODE'                 )
+  ( FIELDNAME = 'CITY'                         TABNAME = 'DOWN_TAB' SELTEXT_M = 'CITY'            )
+  ( FIELDNAME = 'ADVERT'                       TABNAME = 'DOWN_TAB' SELTEXT_M = 'ADVERT'              )
+  ( FIELDNAME = 'TELE_NO'                      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TELE NO'              )
+  ( FIELDNAME = 'CELL_NO'                      TABNAME = 'DOWN_TAB' SELTEXT_M = 'CELL NO.'              )
+  ( FIELDNAME = 'EMAIL'                        TABNAME = 'DOWN_TAB' SELTEXT_M = 'EMAIL'              )
+  ( FIELDNAME = 'SKYPE_ID'                     TABNAME = 'DOWN_TAB' SELTEXT_M = 'SKYPE ID'                            )
+  ( FIELDNAME = 'VACANCY'                      TABNAME = 'DOWN_TAB' SELTEXT_M = 'VACANCY'              )
+  ( FIELDNAME = 'EDUCATION_TYPE'               TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDUCATION TYPE'              )
+  ( FIELDNAME = 'CERTIFICATE'                  TABNAME = 'DOWN_TAB' SELTEXT_M = 'CERTIFICATE'              )
+  ( FIELDNAME = 'INSTITUTE_COUNTRY'            TABNAME = 'DOWN_TAB' SELTEXT_M = 'INSTITUTE COUNTRY'              )
+  ( FIELDNAME = 'TEXT_EDU_INST'                TABNAME = 'DOWN_TAB' SELTEXT_M = 'TEXT EDU INST'              )
+  ( FIELDNAME = 'EDU_TRAINING_TEXT'            TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDU TRAINING TEXT'              )
+  ( FIELDNAME = 'FROM_DATE_EDU'                TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE EDU'              )
+  ( FIELDNAME = 'TO_DATE_EDU'                  TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE EDU'              )
+  ( FIELDNAME = 'CGPA'                         TABNAME = 'DOWN_TAB' SELTEXT_M = 'CGPA'              )
+  ( FIELDNAME = 'YEARS_OF_EDU'                 TABNAME = 'DOWN_TAB' SELTEXT_M = 'YEARS OF EDU'              )
+  ( FIELDNAME = 'EDUCATION_TYPE_2'             TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDUCATION TYPE 2'              )
+  ( FIELDNAME = 'CERTIFICATE_2'                TABNAME = 'DOWN_TAB' SELTEXT_M = 'CERTIFICATE 2'              )
+  ( FIELDNAME = 'INSTITUTE_COUNTRY_2'          TABNAME = 'DOWN_TAB' SELTEXT_M = 'INSTITUTE COUNTRY 2'              )
+  ( FIELDNAME = 'TEXT_EDU_INST_2'              TABNAME = 'DOWN_TAB' SELTEXT_M = 'TEXT EDU INST 2'              )
+  ( FIELDNAME = 'EDU_TRAINING_TEXT_2'          TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDU TRAINING TEXT_2'              )
+  ( FIELDNAME = 'FROM_DATE_EDU_2'              TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE EDU 2'              )
+  ( FIELDNAME = 'TO_DATE_EDU_2'                TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE EDU 2'              )
+  ( FIELDNAME = 'CGPA_2'                       TABNAME = 'DOWN_TAB' SELTEXT_M = 'CGPA 2'              )
+  ( FIELDNAME = 'YEARS_OF_EDU_2'               TABNAME = 'DOWN_TAB' SELTEXT_M = 'YEARS OF EDU 2'              )
+  ( FIELDNAME = 'EDUCATION_TYPE_3'             TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDUCATION TYPE 3'              )
+  ( FIELDNAME = 'CERTIFICATE_3'                TABNAME = 'DOWN_TAB' SELTEXT_M = 'CERTIFICATE 3'              )
+  ( FIELDNAME = 'INSTITUTE_COUNTRY_3'          TABNAME = 'DOWN_TAB' SELTEXT_M = 'INSTITUTE COUNTRY 3'              )
+  ( FIELDNAME = 'TEXT_EDU_INST_3'              TABNAME = 'DOWN_TAB' SELTEXT_M = 'TEXT EDU INST 3'              )
+  ( FIELDNAME = 'EDU_TRAINING_TEXT_3'          TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDU TRAINING TEXT_3'              )
+  ( FIELDNAME = 'FROM_DATE_EDU_3'              TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE EDU 3'              )
+  ( FIELDNAME = 'TO_DATE_EDU_3'                TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE EDU 3'              )
+  ( FIELDNAME = 'CGPA_3'                       TABNAME = 'DOWN_TAB' SELTEXT_M = 'CGPA 3'              )
+  ( FIELDNAME = 'YEARS_OF_EDU_3'               TABNAME = 'DOWN_TAB' SELTEXT_M = 'YEARS OF EDU 3'              )
+  ( FIELDNAME = 'EDUCATION_TYPE_4'             TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDUCATION TYPE 4'              )
+  ( FIELDNAME = 'CERTIFICATE_4'                TABNAME = 'DOWN_TAB' SELTEXT_M = 'CERTIFICATE 4'              )
+  ( FIELDNAME = 'INSTITUTE_COUNTRY_4'          TABNAME = 'DOWN_TAB' SELTEXT_M = 'INSTITUTE COUNTRY 4'              )
+  ( FIELDNAME = 'TEXT_EDU_INST_4'              TABNAME = 'DOWN_TAB' SELTEXT_M = 'TEXT EDU INST 4'              )
+  ( FIELDNAME = 'EDU_TRAINING_TEXT_4'          TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDU TRAINING TEXT_4'              )
+  ( FIELDNAME = 'FROM_DATE_EDU_4'              TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE EDU 4'              )
+  ( FIELDNAME = 'TO_DATE_EDU_4'                TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE EDU 4          '              )
+  ( FIELDNAME = 'CGPA_4'                       TABNAME = 'DOWN_TAB' SELTEXT_M = 'CGPA 4'              )
+  ( FIELDNAME = 'YEARS_OF_EDU_4'               TABNAME = 'DOWN_TAB' SELTEXT_M = 'YEARS OF EDU 4'              )
+  ( FIELDNAME = 'EDUCATION_TYPE_5       '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDUCATION TYPE 5'              )
+  ( FIELDNAME = 'CERTIFICATE_5          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'CERTIFICATE 5'              )
+  ( FIELDNAME = 'INSTITUTE_COUNTRY_5    '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'INSTITUTE COUNTRY 5'              )
+  ( FIELDNAME = 'TEXT_EDU_INST_5        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TEXT EDU INST 5'              )
+  ( FIELDNAME = 'EDU_TRAINING_TEXT_5'          TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDU TRAINING TEXT_5'              )
+  ( FIELDNAME = 'FROM_DATE_EDU_5        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE EDU 5'              )
+  ( FIELDNAME = 'TO_DATE_EDU_5          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE EDU 5'              )
+  ( FIELDNAME = 'CGPA_5                 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'CGPA 5'              )
+  ( FIELDNAME = 'YEARS_OF_EDU_5         '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'YEARS OF EDU 5'              )
+  ( FIELDNAME = 'EDUCATION_TYPE_6       '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDUCATION TYPE 6'              )
+  ( FIELDNAME = 'CERTIFICATE_6          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'CERTIFICATE 6'              )
+  ( FIELDNAME = 'INSTITUTE_COUNTRY_6    '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'INSTITUTE COUNTRY 6'              )
+  ( FIELDNAME = 'TEXT_EDU_INST_6        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TEXT EDU INST 6'              )
+  ( FIELDNAME = 'EDU_TRAINING_TEXT_6'          TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDU TRAINING TEXT_6'              )
+  ( FIELDNAME = 'FROM_DATE_EDU_6        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE EDU 6'              )
+  ( FIELDNAME = 'TO_DATE_EDU_6          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE EDU 6'              )
+  ( FIELDNAME = 'CGPA_6                 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'CGPA 6'              )
+  ( FIELDNAME = 'YEARS_OF_EDU_6         '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'YEARS OF EDU 6'              )
+  ( FIELDNAME = 'EDUCATION_TYPE_7       '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDUCATION TYPE 7'              )
+  ( FIELDNAME = 'CERTIFICATE_7          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'CERTIFICATE 7'              )
+  ( FIELDNAME = 'INSTITUTE_COUNTRY_7    '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'INSTITUTE COUNTRY 7'              )
+  ( FIELDNAME = 'TEXT_EDU_INST_7        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TEXT EDU INST 7'              )
+  ( FIELDNAME = 'EDU_TRAINING_TEXT_7'          TABNAME = 'DOWN_TAB' SELTEXT_M = 'EDU TRAINING TEXT_7'              )
+  ( FIELDNAME = 'FROM_DATE_EDU_7        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE EDU 7'              )
+  ( FIELDNAME = 'TO_DATE_EDU_7          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE EDU 7'              )
+  ( FIELDNAME = 'CGPA_7                 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'CGPA 7'              )
+  ( FIELDNAME = 'YEARS_OF_EDU_7         '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'YEARS OF EDU 7'              )
+  ( FIELDNAME = 'PREV_EMP_NAME'                TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP NAME'              )
+  ( FIELDNAME = 'PREV_EMP_COUNTRY_KEY   '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP COUNTRY KEY'              )
+  ( FIELDNAME = 'FROM_DATE_PREV_JOB'           TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE PREV JOB'              )
+  ( FIELDNAME = 'TO_DATE_PREV_JOB'             TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE PREV JOB'              )
+  ( FIELDNAME = 'AREA_OF_JOB'                  TABNAME = 'DOWN_TAB' SELTEXT_M = 'AREA OF JOB'              )
+  ( FIELDNAME = 'DESIGNATION'                  TABNAME = 'DOWN_TAB' SELTEXT_M = 'DESIGNATION'              )
+  ( FIELDNAME = 'PREV_EMP_NAME_2        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP NAME 2'              )
+  ( FIELDNAME = 'PREV_EMP_COUNTRY_KEY_2 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP COUNTRY KEY 2'              )
+  ( FIELDNAME = 'FROM_DATE_PREV_JOB_2   '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE PREV JOB 2'              )
+  ( FIELDNAME = 'TO_DATE_PREV_JOB_2     '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE PREV JOB 2'              )
+  ( FIELDNAME = 'AREA_OF_JOB_2          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'AREA OF JOB 2'              )
+  ( FIELDNAME = 'DESIGNATION_2          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'DESIGNATION 2'              )
+  ( FIELDNAME = 'PREV_EMP_NAME_3        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP NAME 3'              )
+  ( FIELDNAME = 'PREV_EMP_COUNTRY_KEY_3 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP COUNTRY KEY 3'              )
+  ( FIELDNAME = 'FROM_DATE_PREV_JOB_3   '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE PREV JOB 3'              )
+  ( FIELDNAME = 'TO_DATE_PREV_JOB_3     '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE PREV JOB 3'              )
+  ( FIELDNAME = 'AREA_OF_JOB_3          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'AREA OF JOB 3'              )
+  ( FIELDNAME = 'DESIGNATION_3          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'DESIGNATION 3'              )
+  ( FIELDNAME = 'PREV_EMP_NAME_4        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP NAME 4'              )
+  ( FIELDNAME = 'PREV_EMP_COUNTRY_KEY_4 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP COUNTRY KEY 4'              )
+  ( FIELDNAME = 'FROM_DATE_PREV_JOB_4   '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE PREV JOB 4'              )
+  ( FIELDNAME = 'TO_DATE_PREV_JOB_4     '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE PREV JOB 4'              )
+  ( FIELDNAME = 'AREA_OF_JOB_4          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'AREA OF JOB 4'              )
+  ( FIELDNAME = 'DESIGNATION_4          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'DESIGNATION 4'              )
+  ( FIELDNAME = 'PREV_EMP_NAME_5        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP NAME 5'              )
+  ( FIELDNAME = 'PREV_EMP_COUNTRY_KEY_5 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP COUNTRY KEY 5'              )
+  ( FIELDNAME = 'FROM_DATE_PREV_JOB_5   '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE PREV JOB 5'              )
+  ( FIELDNAME = 'TO_DATE_PREV_JOB_5     '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE PREV JOB 5'              )
+  ( FIELDNAME = 'AREA_OF_JOB_5          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'AREA OF JOB 5'              )
+  ( FIELDNAME = 'DESIGNATION_5          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'DESIGNATION 5'              )
+  ( FIELDNAME = 'PREV_EMP_NAME_6        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP NAME 6'              )
+  ( FIELDNAME = 'PREV_EMP_COUNTRY_KEY_6 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP COUNTRY KEY 6 '              )
+  ( FIELDNAME = 'FROM_DATE_PREV_JOB_6   '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE PREV JOB 6'              )
+  ( FIELDNAME = 'TO_DATE_PREV_JOB_6     '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE PREV JOB 6'              )
+  ( FIELDNAME = 'AREA_OF_JOB_6          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'AREA OF JOB 6'              )
+  ( FIELDNAME = 'DESIGNATION_6          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'DESIGNATION 6'              )
+  ( FIELDNAME = 'PREV_EMP_NAME_7        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP NAME 7'              )
+  ( FIELDNAME = 'PREV_EMP_COUNTRY_KEY_7 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP COUNTRY KEY 7'              )
+  ( FIELDNAME = 'FROM_DATE_PREV_JOB_7   '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE PREV JOB 7'              )
+  ( FIELDNAME = 'TO_DATE_PREV_JOB_7     '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE PREV JOB 7'              )
+  ( FIELDNAME = 'AREA_OF_JOB_7          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'AREA OF JOB 7'              )
+  ( FIELDNAME = 'DESIGNATION_7          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'DESIGNATION 7'              )
+  ( FIELDNAME = 'PREV_EMP_NAME_8        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP NAME 8'              )
+  ( FIELDNAME = 'PREV_EMP_COUNTRY_KEY_8 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP COUNTRY KEY 8'              )
+  ( FIELDNAME = 'FROM_DATE_PREV_JOB_8   '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE PREV JOB 8'              )
+  ( FIELDNAME = 'TO_DATE_PREV_JOB_8     '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE PREV JOB 8'              )
+  ( FIELDNAME = 'AREA_OF_JOB_8          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'AREA OF JOB 8'              )
+  ( FIELDNAME = 'DESIGNATION_8          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'DESIGNATION 8'              )
+  ( FIELDNAME = 'PREV_EMP_NAME_9        '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP NAME 9'              )
+  ( FIELDNAME = 'PREV_EMP_COUNTRY_KEY_9 '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP COUNTRY KEY 9'              )
+  ( FIELDNAME = 'FROM_DATE_PREV_JOB_9   '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE PREV JOB 9'              )
+  ( FIELDNAME = 'TO_DATE_PREV_JOB_9     '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE PREV JOB 9'              )
+  ( FIELDNAME = 'AREA_OF_JOB_9          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'AREA OF JOB 9'              )
+  ( FIELDNAME = 'DESIGNATION_9          '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'DESIGNATION 9'              )
+  ( FIELDNAME = 'PREV_EMP_NAME_10       '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP NAME 10'              )
+  ( FIELDNAME = 'PREV_EMP_COUNTRY_KEY_10'      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PREV EMP COUNTRY KEY 10'              )
+  ( FIELDNAME = 'FROM_DATE_PREV_JOB_10  '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'FROM DATE PREV JOB 10'              )
+  ( FIELDNAME = 'TO_DATE_PREV_JOB_10    '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'TO DATE PREV JOB 10'              )
+  ( FIELDNAME = 'AREA_OF_JOB_10         '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'AREA OF JOB 10'              )
+  ( FIELDNAME = 'DESIGNATION_10         '      TABNAME = 'DOWN_TAB' SELTEXT_M = 'DESIGNATION 10'              )
+  ( FIELDNAME = 'LAST_DRAWN_SALARY'            TABNAME = 'DOWN_TAB' SELTEXT_M = 'LAST DRAWN SALARY'                   )
+  ( FIELDNAME = 'PRESENT_RESIDING_CITY'        TABNAME = 'DOWN_TAB' SELTEXT_M = 'PRESENT RESIDING CITY'               )
+  ( FIELDNAME = 'DISABILITY'                   TABNAME = 'DOWN_TAB' SELTEXT_M = 'DISABILITY'                          )
+  ( FIELDNAME = 'PIC_URL'                      TABNAME = 'DOWN_TAB' SELTEXT_M = 'PIC URL'              )
+  ( FIELDNAME = 'CV_URL'                       TABNAME = 'DOWN_TAB' SELTEXT_M = 'CV URL'              )
+  ( FIELDNAME = 'ERROR_MSG'                    TABNAME = 'DOWN_TAB' SELTEXT_M = 'ERROR MSG'               )
+
+  ).
+
+
+
+ENDFORM.
+
+
+
+
+
+
+
+
+*&---------------------------------------------------------------------*
+*& Form F_CONVERT_DATE_INTERNAL
+*&---------------------------------------------------------------------*
+*& Converts date to Internal format
+*&---------------------------------------------------------------------*
+FORM f_convert_date_internal  USING    iv_date_ext TYPE string
+                              CHANGING cv_date_int TYPE datum.
+
+  DATA: lv_day   TYPE char2,
+        lv_month TYPE char2,
+        lv_year  TYPE char4.
+
+  SPLIT iv_date_ext AT '.' INTO  lv_day lv_month lv_year.
+
+  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+    EXPORTING
+      input  = lv_day
+    IMPORTING
+      output = lv_day.
+  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+    EXPORTING
+      input  = lv_month
+    IMPORTING
+      output = lv_month.
+  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+    EXPORTING
+      input  = lv_year
+    IMPORTING
+      output = lv_year.
+
+  cv_date_int = |{ lv_year }{ lv_month }{ lv_day }|.
+
+ENDFORM.
+
+
+*----------------------------------------------------------------------*
+*       Form  CREATE_URL_DOC
+*----------------------------------------------------------------------*
+form create_gos_url USING iv_title TYPE any iv_url TYPE any.
+
+DATA document_id       TYPE sofmk.
+DATA lt_objhead TYPE STANDARD TABLE OF soli.
+DATA url               TYPE so_url.
+DATA l_url_id   TYPE so_url.
+DATA lt_objcont TYPE STANDARD TABLE OF soli.
+DATA ls_objcont TYPE soli.
+DATA l_obj_data TYPE sood1.
+DATA document_title    TYPE sood-objdes.
+DATA lt_urltab  TYPE STANDARD TABLE OF sood-objdes.
+DATA l_tab_size TYPE i.
+DATA folder_id         TYPE sofdk.
+DATA l_obj_id   TYPE soodk.
+DATA ep_url TYPE  borident-objkey.
+
+    l_url_id = iv_url.
+
+  WHILE NOT l_url_id IS INITIAL.
+  CONCATENATE '&KEY&' l_url_id(250) INTO ls_objcont.
+  APPEND ls_objcont TO lt_objcont.
+  SHIFT l_url_id LEFT BY 250 PLACES.
+ENDWHILE.
+
+  l_obj_data-objsns = 'O'.
+  l_obj_data-objla  = sy-langu.
+  l_obj_data-objdes = iv_title.
+
+  document_title = iv_title.
+IF document_title IS INITIAL.
+  SPLIT url AT '/' INTO TABLE lt_urltab.
+  DESCRIBE TABLE lt_urltab LINES l_tab_size.
+  READ TABLE lt_urltab INDEX l_tab_size INTO document_title.
+ENDIF.
+  l_obj_data-objdes = document_title.
+CALL FUNCTION 'SO_FOLDER_ROOT_ID_GET'
+  EXPORTING
+    region    = 'B'
+  IMPORTING
+    folder_id = folder_id
+  EXCEPTIONS
+    OTHERS    = 1.
+
+
+
+CALL FUNCTION 'SO_OBJECT_INSERT'
+  EXPORTING
+    folder_id             = folder_id
+    object_type           = 'URL'
+    object_hd_change      = l_obj_data
+  IMPORTING
+    object_id             = l_obj_id
+  TABLES
+    objhead               = lt_objhead
+    objcont               = lt_objcont
+  EXCEPTIONS
+    active_user_not_exist = 35
+    folder_not_exist      = 6
+    object_type_not_exist = 17
+    owner_not_exist       = 22
+    parameter_error       = 23
+    OTHERS                = 1000.
+
+IF sy-subrc = 0.
+  document_id-foltp = folder_id-foltp.
+  document_id-folyr = folder_id-folyr.
+  document_id-folno = folder_id-folno.
+  document_id-doctp = l_obj_id-objtp.
+  document_id-docyr = l_obj_id-objyr.
+  document_id-docno = l_obj_id-objno.
+ELSE.
+ENDIF.
+DATA rel_doc  TYPE borident.
+DATA is_object TYPE borident.
+is_object-objkey = gv_applicant_no.
+is_object-objtype = 'APPLICANT'.
+IF NOT is_object-objkey IS INITIAL.
+  IF NOT document_id IS INITIAL.
+    CLEAR rel_doc.
+    rel_doc-objkey  = document_id.
+    rel_doc-objtype = 'MESSAGE'.
+    CALL FUNCTION 'BINARY_RELATION_CREATE'
+      EXPORTING
+        obj_rolea    = is_object
+        obj_roleb    = rel_doc
+        relationtype = 'URL'
+      EXCEPTIONS
+        OTHERS       = 1.
+    IF sy-subrc = 0.
+      ep_url = document_id.
+*        commit work.
+    ENDIF.
+  ENDIF.
+ELSE.
+  ep_url = document_id.
+ENDIF.
+
+
+endform.                    " CREATE_URL_DOC

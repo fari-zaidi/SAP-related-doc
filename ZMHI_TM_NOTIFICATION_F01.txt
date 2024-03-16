@@ -1,0 +1,762 @@
+*&---------------------------------------------------------------------*
+*& Report ZMHI_TM_NOTIFICATION
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+
+INCLUDE: zmhi_tm_notification_top,                    " Global Data
+
+         zmhi_tm_notification_o01,                    " PBO-Modules
+         zmhi_tm_notification_i01,                    " PAI-Modules
+         zmhi_tm_notification_f01.                    " FORM-Routines
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+*&---------------------------------------------------------------------*
+*& Include ZMHI_TM_NOTIFICATION_TOP                 - Report ZMHI_TM_NOTIFICATION
+*&---------------------------------------------------------------------*
+REPORT zmhi_tm_notification.
+
+DATA: BEGIN OF tm_task OCCURS 0.
+        INCLUDE STRUCTURE ztm_task.
+        DATA: msg_ty TYPE c,
+        msg    TYPE char100,
+      END OF tm_task.
+
+DATA: tm_relation TYPE STANDARD TABLE OF ztm_relation WITH HEADER LINE,
+      tm_assignee TYPE STANDARD TABLE OF ztm_assignee WITH HEADER LINE.
+
+CONSTANTS: c_sender       TYPE val_text   VALUE 'NDRMF SAP',
+           c_sender_email TYPE ad_smtpadr VALUE 'sap.notifications@ndrmf.pk'.
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+*&---------------------------------------------------------------------*
+*& Include          ZMHI_TM_NOTIFICATION_O01
+*&---------------------------------------------------------------------*
+
+INITIALIZATION.
+
+AT SELECTION-SCREEN OUTPUT.
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+*&---------------------------------------------------------------------*
+*& Include          ZMHI_TM_NOTIFICATION_I01
+*&---------------------------------------------------------------------*
+
+START-OF-SELECTION.
+  PERFORM get_tasks.
+  PERFORM notify.
+  PERFORM write_report.
+
+END-OF-SELECTION.
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+*&---------------------------------------------------------------------*
+*& Include          ZMHI_TM_NOTIFICATION_F01
+*&---------------------------------------------------------------------*
+
+*&---------------------------------------------------------------------*
+*& Form GET_TASKS
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM get_tasks .
+  SELECT * FROM ztm_task
+    WHERE complete  NE '100'
+      AND notify_at NE '100'
+      AND NOT aedat IS INITIAL
+      AND NOT tat   IS INITIAL
+  INTO CORRESPONDING FIELDS OF TABLE @tm_task.
+  SORT tm_task ASCENDING BY tid.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form NOTIFY
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM notify .
+  DATA: lth_dats    LIKE TABLE OF rke_dat,
+        due_days    TYPE i,
+        due_hour    TYPE p DECIMALS 3,
+        cnt_days    TYPE i,
+        cnt_hour    TYPE p DECIMALS 3,
+        per(3)      TYPE i,
+        per_slot(3) TYPE i,
+        e_time_diff TYPE ltak_istwm.
+
+
+  SELECT * INTO TABLE @DATA(t_notif_per) FROM ztm_notif_per.
+  SORT t_notif_per ASCENDING BY percentage.
+
+  CHECK NOT t_notif_per[] IS INITIAL.
+
+  LOOP AT tm_task ASSIGNING FIELD-SYMBOL(<fs_task>).
+    CALL FUNCTION 'RKE_SELECT_FACTDAYS_FOR_PERIOD'
+      EXPORTING
+        i_datab               = <fs_task>-aedat
+        i_datbi               = <fs_task>-tat
+        i_factid              = '01'
+      TABLES
+        eth_dats              = lth_dats
+      EXCEPTIONS
+        date_conversion_error = 1
+        OTHERS                = 2.
+    IF sy-subrc = 0.
+      DESCRIBE TABLE lth_dats LINES due_days.
+      LOOP AT lth_dats INTO DATA(ls_date).
+        IF ls_date-periodat = <fs_task>-aedat.
+          IF <fs_task>-aetim < '090000'.
+            e_time_diff = 8.
+          ELSEIF <fs_task>-aetim >= '090000'.
+            CALL FUNCTION 'L_TO_TIME_DIFF'
+              EXPORTING
+                i_start_date     = ls_date-periodat
+                i_start_time     = <fs_task>-aetim
+                i_end_date       = ls_date-periodat
+                i_end_time       = '170000'
+                i_time_uom       = 'MIN'
+              IMPORTING
+                e_time_diff      = e_time_diff
+              EXCEPTIONS
+                input_data_empty = 1
+                OTHERS           = 2.
+            e_time_diff = e_time_diff / 60.
+          ENDIF.
+        ELSE.
+          e_time_diff = 8.
+        ENDIF.
+        IF e_time_diff < 0.
+          e_time_diff = e_time_diff * -1.
+        ENDIF.
+        due_hour = due_hour + e_time_diff.
+        CLEAR e_time_diff.
+      ENDLOOP.
+      CLEAR: lth_dats.
+
+      CALL FUNCTION 'RKE_SELECT_FACTDAYS_FOR_PERIOD'
+        EXPORTING
+          i_datab               = <fs_task>-aedat
+          i_datbi               = sy-datum
+          i_factid              = '01'
+        TABLES
+          eth_dats              = lth_dats
+        EXCEPTIONS
+          date_conversion_error = 1
+          OTHERS                = 2.
+      IF sy-subrc = 0.
+        DESCRIBE TABLE lth_dats LINES cnt_days.
+
+        LOOP AT lth_dats INTO ls_date.
+          "same day
+          IF ls_date-periodat = sy-datum.
+            " START DATE
+            IF ls_date-periodat = <fs_task>-aedat.
+              IF sy-uzeit < '090000'.
+                CONTINUE.
+              ELSEIF sy-uzeit >= '090000' AND sy-uzeit <= '170000'.
+                CALL FUNCTION 'L_TO_TIME_DIFF'
+                  EXPORTING
+                    i_start_date     = ls_date-periodat
+                    i_start_time     = <fs_task>-aetim
+                    i_end_date       = ls_date-periodat
+                    i_end_time       = sy-uzeit
+                    i_time_uom       = 'MIN'
+                  IMPORTING
+                    e_time_diff      = e_time_diff
+                  EXCEPTIONS
+                    input_data_empty = 1
+                    OTHERS           = 2.
+                e_time_diff = e_time_diff / 60.
+
+              ELSEIF sy-uzeit > '170000'.
+                CALL FUNCTION 'L_TO_TIME_DIFF'
+                  EXPORTING
+                    i_start_date     = ls_date-periodat
+                    i_start_time     = <fs_task>-aetim
+                    i_end_date       = ls_date-periodat
+                    i_end_time       = '170000'
+                    i_time_uom       = 'MIN'
+                  IMPORTING
+                    e_time_diff      = e_time_diff
+                  EXCEPTIONS
+                    input_data_empty = 1
+                    OTHERS           = 2.
+                e_time_diff = e_time_diff / 60.
+
+              ENDIF.
+
+              " end date
+            ELSEIF ls_date-periodat = <fs_task>-tat AND <fs_task>-tat <> <fs_task>-aedat.
+              IF sy-uzeit < '090000'.
+                CONTINUE.
+              ELSEIF sy-uzeit >= '090000' AND sy-uzeit <= '170000'.
+                CALL FUNCTION 'L_TO_TIME_DIFF'
+                  EXPORTING
+                    i_start_date     = ls_date-periodat
+                    i_start_time     = '090000'
+                    i_end_date       = ls_date-periodat
+                    i_end_time       = sy-uzeit
+                    i_time_uom       = 'MIN'
+                  IMPORTING
+                    e_time_diff      = e_time_diff
+                  EXCEPTIONS
+                    input_data_empty = 1
+                    OTHERS           = 2.
+                e_time_diff = e_time_diff / 60.
+
+              ELSEIF sy-uzeit > '170000'.
+                CALL FUNCTION 'L_TO_TIME_DIFF'
+                  EXPORTING
+                    i_start_date     = ls_date-periodat
+                    i_start_time     = <fs_task>-aetim
+                    i_end_date       = ls_date-periodat
+                    i_end_time       = '170000'
+                    i_time_uom       = 'MIN'
+                  IMPORTING
+                    e_time_diff      = e_time_diff
+                  EXCEPTIONS
+                    input_data_empty = 1
+                    OTHERS           = 2.
+                e_time_diff = e_time_diff / 60.
+
+              ENDIF.
+
+              " Mid days
+            ELSE.
+              e_time_diff = 8.
+            ENDIF.
+
+          ELSE.
+            " Start date
+            IF ls_date-periodat = <fs_task>-aedat.
+              IF sy-uzeit < '090000'.
+                CONTINUE.
+              ELSE.
+                CALL FUNCTION 'L_TO_TIME_DIFF'
+                  EXPORTING
+                    i_start_date     = ls_date-periodat
+                    i_start_time     = <fs_task>-aetim
+                    i_end_date       = ls_date-periodat
+                    i_end_time       = '170000'
+                    i_time_uom       = 'MIN'
+                  IMPORTING
+                    e_time_diff      = e_time_diff
+                  EXCEPTIONS
+                    input_data_empty = 1
+                    OTHERS           = 2.
+                e_time_diff = e_time_diff / 60.
+              ENDIF.
+
+              " Mid days
+            ELSE.
+              e_time_diff = 8.
+            ENDIF.
+          ENDIF.
+
+
+          IF e_time_diff < 0.
+            e_time_diff = e_time_diff * -1.
+          ENDIF.
+          cnt_hour = cnt_hour + e_time_diff.
+          CLEAR e_time_diff.
+        ENDLOOP.
+
+        IF cnt_days <= due_days.
+          TRY .
+              per = ( cnt_hour / due_hour ) * 100.
+            CATCH cx_sy_zerodivide.
+
+          ENDTRY.
+
+          LOOP AT t_notif_per INTO DATA(ls_notif_per) WHERE percentage >= per.
+            per_slot = ls_notif_per-percentage.
+            EXIT.
+          ENDLOOP.
+
+*          DATA: index TYPE i.
+*          index = 4.
+*          DO 4 TIMES.
+*            IF per < 25.
+*              EXIT.
+*            ENDIF.
+*            per_slot = 25 * index.
+*            IF per >= per_slot.
+*              EXIT.
+*            ENDIF.
+*            index = index - 1.
+*            CLEAR per_slot.
+*          ENDDO.
+        ELSE.
+          per_slot = 100.
+        ENDIF.
+
+        IF <fs_task>-notify_at <> 0. SHIFT <fs_task>-notify_at LEFT DELETING LEADING '0'. ENDIF.
+
+        IF per_slot <> <fs_task>-notify_at AND per_slot NE 0.
+          DATA: ls_task TYPE ztm_task.
+          MOVE-CORRESPONDING <fs_task> TO ls_task.
+
+          SELECT * INTO CORRESPONDING FIELDS OF TABLE tm_assignee FROM ztm_assignee WHERE tid = <fs_task>-tid.
+
+          CASE per_slot.
+            WHEN 100.
+              PERFORM notify_creater USING per_slot ls_task tm_assignee[] .
+*              PERFORM notify_assigne USING per_slot ls_task tm_assignee[].
+            WHEN OTHERS.
+*              PERFORM notify_creater USING per_slot ls_task tm_assignee[].
+              PERFORM notify_assigne USING per_slot ls_task tm_assignee[].
+          ENDCASE.
+
+          UPDATE ztm_task SET notify_at = per_slot WHERE tid = <fs_task>-tid.
+          COMMIT WORK.
+          <fs_task>-msg = per_slot && `% time lapse.`.
+        ENDIF.
+
+      ENDIF.
+    ENDIF.
+
+    CLEAR: lth_dats, due_days, due_hour, cnt_days, cnt_hour, per, per_slot, tm_assignee[].
+  ENDLOOP.
+*  BREAK-POINT.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form NOTIFY_CREATER
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*&      --> PER_SLOT
+*&      --> TM_TASK
+*&      --> LS_ITAB_ANAME[]
+*&---------------------------------------------------------------------*
+FORM notify_creater  USING per_slot      TYPE i
+                           tm_task       TYPE ztm_task
+                           ls_itab_aname TYPE ztt_tm_assignee.
+
+  DATA : subject      TYPE so_obj_des,
+         text_data    TYPE bcsy_text,
+         ls_text_data LIKE LINE OF text_data,
+
+         ls_return    TYPE bapiret2.
+*********boc FZ**********
+         DATA: per_slot2 TYPE string,
+               assiges   TYPE char200.
+   per_slot2 = per_slot.
+  SELECT * INTO TABLE @DATA(T_ZTM_ATTACHMENT) FROM ZTM_ATTACHMENT WHERE tid = @tm_task-tid.
+*********eoc FZ**********
+  SELECT SINGLE ref~usrid_long, nam~cname , nam~vorna, nam~nachn
+    FROM pa0105 AS p
+    INNER JOIN pa0105 AS ref ON ref~pernr = p~pernr
+    INNER JOIN pa0002 AS nam ON nam~pernr = p~pernr
+    INTO @DATA(smtp)
+  WHERE p~usrid EQ @tm_task-aenam
+    AND p~endda EQ '99991231'
+    AND p~subty EQ '0001'
+    AND ref~endda EQ '99991231'
+    AND ref~subty EQ '0010'
+    AND nam~endda EQ '99991231'.
+    IF sy-subrc = 0.
+    LOOP AT ls_itab_aname INTO DATA(ls_aname) WHERE endda = '99991231'.
+      IF assiges IS INITIAL.
+        assiges = ls_aname-aname.
+      ELSE.
+        assiges = assiges && `, ` && ls_aname-aname.
+      ENDIF.
+    ENDLOOP.
+     SELECT SINGLE discription INTO @DATA(priority_t) FROM ztm_priority WHERE priority = @tm_task-priority.
+
+*  IF sy-subrc = 0.
+    subject = `Task ` && tm_task-tid && ` time esclated ` && per_slot && '%'.
+
+    ls_text_data-line = `<div style="width:75%; margin: 0 auto; font-family:sans-serif;">`.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = `Dear <b>` && smtp-vorna && ' ' && smtp-nachn && '</b>,<br/><br/>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+**********************  boc Faryal Zaidi 6th August 2021 **************************************
+    ls_text_data-line = `You have assigned:` && tm_task-title && ` with the following details.</b></br>`.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<table style="width:100%; border: 1px solid black; border-collapse: collapse;"><tr>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>Task ID</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>File No.</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line  = '<th style="border: 1px solid black; border-collapse: collapse;"><b>Creation Date</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>Due Date</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>Priority</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>Assign To</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>TAT</b></th></tr><tr>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && tm_task-tid && '</td>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && tm_task-long_id && '</td>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && tm_task-aedat+6(2) && '.'
+                                                                                           && tm_task-aedat+4(2) && '.'
+                                                                                           && tm_task-aedat+0(4)
+                                                                                           && '</td>'.
+                                                                                            APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && tm_task-tat+6(2) && '.'
+                                                                                           && tm_task-tat+4(2) && '.'
+                                                                                           && tm_task-tat+0(4)
+                                                                                           && '</td>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && priority_t && '</td>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && assiges  && '</td>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && per_slot2 && '%' .
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '</td></tr></table><br/><br/>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+*    CONCATENATE '<tr><td>'  tm_task-tid      '</td>' INTO ls_text_data-line SEPARATED BY space.
+*    APPEND ls_text_data TO text_data.
+*    read TABLE T_ZTM_ATTACHMENT INTO DATA(LS_ZTM_ATTACHMENT) WITH KEY tid = tm_task-tid.
+*    CONCATENATE '<td>' LS_ZTM_ATTACHMENT-FID       '</td>' INTO ls_text_data-line SEPARATED BY space.
+*    APPEND ls_text_data TO text_data.
+*    CONCATENATE '<td>' tm_task-AEDAT+6(2)'-'tm_task-AEDAT+4(2)'-'tm_task-AEDAT+0(4)       '</td>' INTO ls_text_data-line.
+*    APPEND ls_text_data TO text_data.
+*    CONCATENATE '<td>' tm_task-TAT+6(2)'-'tm_task-TAT+4(2)'-'tm_task-TAT+0(4)       '</td>' INTO ls_text_data-line.
+*    APPEND ls_text_data TO text_data.
+*    CONCATENATE '<td>' tm_task-priority       '</td>' INTO ls_text_data-line SEPARATED BY space.
+*    APPEND ls_text_data TO text_data.
+*    READ TABLE ls_itab_aname INTO ls_aname WITH KEY tid = tm_task-tid.
+*    CONCATENATE '<td>' ls_aname-aname      '</td>' INTO ls_text_data-line SEPARATED BY space.
+*    APPEND ls_text_data TO text_data.
+*    CONCATENATE '<td>' per_slot2'%'      '</td></tr>' INTO ls_text_data-line SEPARATED BY space.
+*    APPEND ls_text_data TO text_data.
+*
+*    ls_text_data-line                 = '</table></br>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+
+    ls_text_data-line = `Your TAT time for this task is passed by ` && per_slot && '%' && `. Please go to your "Create Task Tile" Fiori Application and see the task.</b></br></br>`.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = 'Task List Link:</br>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+*
+    ls_text_data-line = '<a href="https://sap.ndrmf.pk/sap/bc/ui5_ui5/ui2/ushell/shells/abap/Fiorilaunchpad.html#ZTS-display" target="_blank">https://sap.ndrmf.pk/sap/bc/ui5_ui5/ui2/ushell/shells/abap/Fiorilaunchpad.html#ZTS-display</a><br/><br/>'.
+      APPEND ls_text_data TO text_data.
+      CLEAR ls_text_data.
+
+   CONCATENATE '<font color=RED><b>Note:</b> This is a system generated email. Please do not response to this email.' '</font></div>' INTO ls_text_data-line  .
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+**********************  eoc Faryal Zaidi 6th August 2021 **************************************
+***    CASE per_slot.
+***      WHEN 100.
+**    ls_text_data-line = `This is to inform you that task ID ` && tm_task-tid && ` has exceeded the threshhold values and requires your immediate attention.</b>,</br>`.
+**    APPEND ls_text_data TO text_data.
+**    CLEAR ls_text_data.
+**    ls_text_data-line = 'Thank you.</br><b>SAP @ NDRMF<b><br/><br/>'.
+**    APPEND ls_text_data TO text_data.
+**    CLEAR ls_text_data.
+**    ls_text_data-line = 'For any technical help, please reach out to mis@ndrmf.pk'.
+**    APPEND ls_text_data TO text_data.
+**    CLEAR ls_text_data.
+***      WHEN OTHERS.
+***    ENDCASE.
+
+    CALL FUNCTION 'ZSEND_HTML_MAIL_EXT'
+      EXPORTING
+        i_email_addr  = smtp-usrid_long   " E-Mail Address
+        i_subject     = subject           " Short description of contents
+        i_main_text   = text_data         " Text Table
+        i_addr_name   = c_sender_email
+        i_addr_string = c_sender
+      IMPORTING
+        es_return     = ls_return.         " Return Parameter
+  ENDIF.
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form NOTIFY_ASSIGNE
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*&      --> PER_SLOT
+*&      --> LS_TASK
+*&      --> TM_ASSIGNEE[]
+*&---------------------------------------------------------------------*
+FORM notify_assigne  USING per_slot      TYPE i
+                           tm_task       TYPE ztm_task
+                           ls_itab_aname TYPE ztt_tm_assignee.
+
+  DATA : subject      TYPE so_obj_des,
+         text_data    TYPE bcsy_text,
+         ls_text_data LIKE LINE OF text_data,
+
+         ls_return    TYPE bapiret2.
+*********boc FZ**********
+         DATA: per_slot2 TYPE string,
+               assiges   TYPE char200.
+   per_slot2 = per_slot.
+  SELECT * INTO TABLE @DATA(T_ZTM_ATTACHMENT) FROM ZTM_ATTACHMENT WHERE tid = @tm_task-tid.
+*********eoc FZ**********
+  LOOP AT ls_itab_aname INTO DATA(ls_aname).
+    SELECT SINGLE ref~usrid_long, nam~cname, nam~vorna, nam~nachn
+    FROM pa0105 AS p
+    INNER JOIN pa0105 AS ref ON ref~pernr = p~pernr
+    INNER JOIN pa0002 AS nam ON nam~pernr = p~pernr
+    INTO @DATA(ls_smtp)
+    WHERE p~usrid EQ @ls_aname-aname
+      AND p~endda EQ '99991231'
+      AND p~subty EQ '0001'
+      AND ref~endda EQ '99991231'
+      AND ref~subty EQ '0010'
+      AND nam~endda EQ '99991231'.
+    IF sy-subrc = 0.
+    LOOP AT ls_itab_aname INTO ls_aname WHERE endda = '99991231'.
+      IF assiges IS INITIAL.
+        assiges = ls_aname-aname.
+      ELSE.
+        assiges = assiges && `, ` && ls_aname-aname.
+      ENDIF.
+    ENDLOOP.
+     SELECT SINGLE discription INTO @DATA(priority_t) FROM ztm_priority WHERE priority = @tm_task-priority.
+
+      subject = `Task ` && tm_task-tid && ` time esclated ` && per_slot && '%'.
+
+       ls_text_data-line = `<div style="width:75%; margin: 0 auto; font-family:sans-serif;">`.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+      ls_text_data-line = `Dear <b>` && ls_smtp-vorna && ' ' && ls_smtp-nachn && '</b>,<br/><br/>'.
+      APPEND ls_text_data TO text_data.
+      CLEAR ls_text_data.
+**********************  boc Faryal Zaidi 6th August 2021 **************************************
+    ls_text_data-line = `You have assigned:` && tm_task-title && ` with the following details.</b></br>`.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+ls_text_data-line = '<table style="width:100%; border: 1px solid black; border-collapse: collapse;"><tr>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>Task ID</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>File No.</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line  = '<th style="border: 1px solid black; border-collapse: collapse;"><b>Creation Date</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>Due Date</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>Priority</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>Assign To</b></th>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<th style="border: 1px solid black; border-collapse: collapse;"><b>TAT</b></th></tr><tr>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && tm_task-tid && '</td>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && tm_task-long_id && '</td>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && tm_task-aedat+6(2) && '.'
+                                                                                           && tm_task-aedat+4(2) && '.'
+                                                                                           && tm_task-aedat+0(4)
+                                                                                           && '</td>'.
+                                                                                            APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && tm_task-tat+6(2) && '.'
+                                                                                           && tm_task-tat+4(2) && '.'
+                                                                                           && tm_task-tat+0(4)
+                                                                                           && '</td>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && priority_t && '</td>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && assiges && '</td>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<td style="border: 1px solid black; border-collapse: collapse;">' && per_slot2 && '%' .
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+    ls_text_data-line = '</td></tr></table><br/><br/>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+*    ls_text_data-line                 = '</br><table border="1" border-collapse:collapse>'.  "border="1" "bgcolor="#0A2A22"
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+*
+*    ls_text_data-line                 = '<tr>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+*
+*    ls_text_data-line                  = '<th><b>Task ID<b></th>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+*
+*    ls_text_data-line                  = '<th><b>File No.<b></th>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+*
+*    ls_text_data-line                  = '<th><b>Creation Date<b></th>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+*
+*    ls_text_data-line                  = '<th><b>Due Date<b></th>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+*
+*    ls_text_data-line                  = '<th><b>Priority<b></th>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+*
+*    ls_text_data-line                  = '<th><b>Assign To<b></th>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+*
+*    ls_text_data-line                  = '<th><b>TAT<b></th>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+*     ls_text_data-line                 = '</tr>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+*    CONCATENATE '<tr><td>'  tm_task-tid      '</td>' INTO ls_text_data-line SEPARATED BY space.
+*    APPEND ls_text_data TO text_data.
+*    read TABLE T_ZTM_ATTACHMENT INTO DATA(LS_ZTM_ATTACHMENT) WITH KEY tid = tm_task-tid.
+*    CONCATENATE '<td>' LS_ZTM_ATTACHMENT-FID       '</td>' INTO ls_text_data-line SEPARATED BY space.
+*    APPEND ls_text_data TO text_data.
+*    CONCATENATE '<td>' tm_task-AEDAT+6(2)'-'tm_task-AEDAT+4(2)'-'tm_task-AEDAT+0(4)       '</td>' INTO ls_text_data-line.
+*    APPEND ls_text_data TO text_data.
+*    CONCATENATE '<td>' tm_task-TAT+6(2)'-'tm_task-TAT+4(2)'-'tm_task-TAT+0(4)       '</td>' INTO ls_text_data-line.
+*    APPEND ls_text_data TO text_data.
+*    CONCATENATE '<td>' tm_task-priority       '</td>' INTO ls_text_data-line SEPARATED BY space.
+*    APPEND ls_text_data TO text_data.
+*    CONCATENATE '<td>' ls_aname-aname      '</td>' INTO ls_text_data-line SEPARATED BY space.
+*    APPEND ls_text_data TO text_data.
+*    CONCATENATE '<td>' per_slot2'%'      '</td></tr>' INTO ls_text_data-line SEPARATED BY space.
+*    APPEND ls_text_data TO text_data.
+*
+*    ls_text_data-line                 = '</table></br>'.
+*    APPEND ls_text_data TO text_data.
+*    CLEAR ls_text_data.
+
+    ls_text_data-line = `Your TAT time for this task is passed by ` && per_slot && '%' && `. Please go to your "Create Task Tile" Fiori Application and see the task.</b></br></br>`.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = 'Task List Link:</br>'.
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+    ls_text_data-line = '<a href="https://sap.ndrmf.pk/sap/bc/ui5_ui5/ui2/ushell/shells/abap/Fiorilaunchpad.html#ZTS-display" target="_blank">https://sap.ndrmf.pk/sap/bc/ui5_ui5/ui2/ushell/shells/abap/Fiorilaunchpad.html#ZTS-display</a><br/><br/>'.
+      APPEND ls_text_data TO text_data.
+      CLEAR ls_text_data.
+
+    CONCATENATE '<font color=RED><b>Note:</b> This is a system generated email. Please do not response to this email.' '</font></div>' INTO ls_text_data-line  .
+    APPEND ls_text_data TO text_data.
+    CLEAR ls_text_data.
+
+**********************  eoc Faryal Zaidi 6th August 2021 **************************************
+***    CASE per_slot.
+***      WHEN 100.
+**      ls_text_data-line = `This is to inform you that task ID ` && tm_task-tid && ` has exceeded the threshhold values and requires your immediate attention.</b>,</br>`.
+**      APPEND ls_text_data TO text_data.
+**      CLEAR ls_text_data.
+**      ls_text_data-line = 'Thank you.</br><b>SAP @ NDRMF<b>'.
+**      APPEND ls_text_data TO text_data.
+**      CLEAR ls_text_data.
+**      ls_text_data-line = 'For any technical help, please reach out to mis@ndrmf.pk'.
+**      APPEND ls_text_data TO text_data.
+**      CLEAR ls_text_data.
+***      WHEN OTHERS.
+***    ENDCASE.
+
+      CALL FUNCTION 'ZSEND_HTML_MAIL_EXT'
+        EXPORTING
+          i_email_addr  = ls_smtp-usrid_long  " E-Mail Address
+          i_subject     = subject             " Short description of contents
+          i_main_text   = text_data           " Text Table
+          i_addr_name   = c_sender_email
+          i_addr_string = c_sender
+        IMPORTING
+          es_return     = ls_return.          " Return Parameter
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form WRITE_REPORT
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM write_report .
+  DELETE tm_task WHERE msg IS INITIAL.
+
+  ULINE AT /(153).
+  FORMAT COLOR COL_HEADING.
+  WRITE: / '|', (10)'Task ID' , (3)'|', (12)'Start Date', (3)'|', (12)'End Date', (3)'|', (100)'Message' , '|'.
+  ULINE AT /(153).
+  FORMAT COLOR COL_NORMAL.
+  LOOP AT tm_task.
+    WRITE: / '|', (10)tm_task-tid COLOR COL_KEY , (3)'|', (12)tm_task-aedat, (3)'|', (12)tm_task-tat, (3)'|', (100)tm_task-msg, '|'.
+  ENDLOOP.
+  WRITE: / '|', (10)'' COLOR COL_KEY , (3)'|', (12)'', (3)'|', (12)'', (3)'|', (100)'', '|'.
+  ULINE AT /(153).
+ENDFORM.

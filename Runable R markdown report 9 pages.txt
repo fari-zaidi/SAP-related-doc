@@ -1,0 +1,202 @@
+---
+title: "MA331-Report: 2211398"
+author: "Zaidi, Faryal"
+subtitle: "TED Talks by Speaker Jennifer\tLin and Speaker David\tLang"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, include=FALSE, echo=TRUE, results='hide', warning=FALSE}
+# You can extend this list below to load all the packages required for your analyses:
+#====================================================================================
+library(dsEssex)
+library(tidyverse)   ## tidyverse package installing 
+library(tidytext)    ## tidytext package installing
+library(dplyr)       ## dplyr package installing
+library(ggplot2)     ## ggplot2 package installing
+library(ggrepel)     ## ggrepel package installing
+library(gutenbergr)  # load the gutenbergr package
+library(pagedown)
+library(pdftools)
+```
+
+## <span style="color: blue;">Introduction</span>
+
+The objective of this report is to analyze the contents of TED speeches given by the two speakers <span style="color: darkgreen;"> **Jennifer	Lin** and **David	Lang** </span> . Jennifer Lin's talk was delivered in February 2004 and was titled as <span style="color: darkgreen;"> **"Improvising on piano, aged 14"** </span>. Whereas, David Lang's talk was given in 2013 and was titled <span style="color: darkgreen;"> **"My underwater robot"** </span>. We will examined these talks and do the analyses such as text analysis techniques to determine sentiment score, frequent word used, and the differences and similarities between them. 
+
+
+## <span style="color: blue;">Methods</span>
+To perform analysis we load the ted talks dataset, after loading the dsEssex and other packages e.g tidyverse in order to perform text analysis on the transcripts. Using the filter() function, we restricted the dataset to just contain the speeches delivered by David Lang and Jennifer Lin.
+
+Next, we performed data preprocessing steps, including the text cleaning on the transcripts and eliminating stopwords. The transcripts were then organised neatly with one row for each word and its related frequency count using the tidytext.
+
+To compare the talks, we made use of a variety of visualisation techniques for the text analysis. In order to compare the frequency of the top terms used by each speaker, we used bar plots and word graph to display the most frequently used words by each speaker. After that we will perform a deeper comparison using numerical and visualization techniques such as sentiment analysis to compare the sentiment of the conversations and determine odd ratio. 
+
+
+## <span style="color: blue;">Results</span>
+### Data Pre-processing
+<span style="color: darkgreen;"> **Text Analysis** </span>
+```{r, echo=FALSE, prompt=FALSE}
+my_filtered_data <- ted_talks %>% 
+  filter(speaker %in% c("Jennifer Lin","David Lang" )) # data is filtered here, so that we only extract the necessary speakers.
+```
+
+Let's tokenize the data and eliminate the unnecessary words by stop words removal process. 
+
+**Filtered data** 
+```{r, message=FALSE, eval=FALSE, echo=TRUE}
+
+my_filtered_data %>%
+  unnest_tokens(word, text) %>%     #creating tokens from the text 
+  anti_join(stop_words) %>%  #eliminating the stopwords from the filtered tokenized dataset
+  count(word, sort= TRUE)    #the words sorted in descending order after being counted here.
+
+```
+**Visualisation of top words for both speakers**
+```{r, warning=FALSE, message=FALSE, eval=TRUE, echo=FALSE}
+# Filter data by speaker column
+my_speakers <- subset(ted_talks, speaker %in% c("Jennifer Lin", "David Lang"))
+
+#tokenism the Jennifer & David
+jd_token = my_speakers%>%unnest_tokens(output = word,input = text )
+
+#gets all the stop words & then anti_join them
+jd_clean_token = jd_token%>%anti_join(get_stopwords())
+
+#Extracting Jennifer Lin words from her speech
+Jennifer_word = jd_clean_token%>%filter(speaker == "Jennifer Lin")%>%count(speaker,word,sort = TRUE)
+Jennifer_word%>%slice_max(n,n=25)%>%mutate(word = reorder(word, n ))%>%ggplot(aes(n, word))+geom_col()+ xlab("Jennifer Lin word count(n)")
+
+#Similarly extracting David Lang words from his talk
+David_word = jd_clean_token%>%filter(speaker == "David Lang")%>%count(speaker,word,sort = TRUE)
+David_word%>%slice_max(n,n=25)%>%mutate(word = reorder(word, n ))%>%ggplot(aes(n, word))+geom_col() + xlab("David Lang word count(n)")
+```
+
+
+**Visualise comparison of vocabulary by speakers **
+Let's use ggplot to visualise the comparison of speakers words.
+
+```{r,warning=FALSE, message=FALSE, out.width= 600}
+ted_talks %>%
+  filter(speaker %in% c("Jennifer Lin","David Lang" ))%>%
+  unnest_tokens(word, text) %>%    #tokenisation of text
+  anti_join(stop_words) %>%  #stop word removl
+  count(speaker, word) %>%   #word count based on speaker
+  group_by(word) %>%       #grouping with resect to words
+  filter(sum(n) > 5) %>%     #filtering the frequency sums within the groupings, which must be bigger than 2.
+  ungroup() %>%      #ungroup the dataset
+  pivot_wider(names_from = "speaker", values_from = "n", values_fill = 0) %>% #create table with two columns addition of speaker word frequencies
+  ggplot(aes('Jennifer	Lin', 'David	Lang')) +
+  geom_abline(color = "red", size = 1.2, alpha = 0.8, lty = 2) +
+  #for nicer text plotting, use the special ggrepel geom 
+  geom_text_repel(aes(label = word), max.overlaps = 15) #Visualise data through ggplot() function to plot the words of both speakers against each other in a graph. Partitioning the speakers by adding a diagonal line of the plot (whose slope = 1), and geom text repel plots the words with a maximum overlap of 15.
+
+```
+
+
+Above graph shows that there are only slight similarity in terms of words used by speakers. Only few words are common and majority are poles apart. The two speakers genre are totally different.
+
+
+<span style="color: darkgreen;"> **Sentiment Analysis** </span>
+**Lets determine the ratio of positive and negative words for each speaker.**
+```{r, warning=FALSE,prompt=FALSE, message=FALSE}
+
+speakers_sentiment <- my_filtered_data %>%
+  unnest_tokens(word, text) %>%   #convert text into tokens
+  anti_join(stop_words)    #stop word removal 
+
+senti_bing <- speakers_sentiment %>%
+  inner_join(get_sentiments("bing"))   #joining the lexicon "bing" to the filtered data
+
+senti_bing[,c(3,5,6)]    #displaying the specified numbers of output columns
+```
+
+```{r}
+senti_bing_plot <- senti_bing %>%
+  count(speaker, sentiment) #counting the sentiment based on the speaker
+```
+ 
+
+```{r, out.width=600}
+ggplot(data = senti_bing_plot, aes(x = sentiment, y = n, fill = sentiment)) +
+ geom_col(position = position_dodge()) + # To avoid the overlapping variables from side to side, position dodge is used.
+  facet_wrap(vars(speaker)) + theme_bw()  # To obtain distinct panels, use facet_wrap.
+```
+
+**Top ten positive and negative words.**
+```{r, message=FALSE, out.width=600}
+word_counts <- senti_bing %>%
+  # count by word and sentiment
+  count(word, sentiment)
+top_words <- word_counts %>%
+  # group by sentiment
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>%
+  mutate(word = reorder(word, n)) %>%
+  ungroup()
+ggplot(top_words, aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ sentiment, scales = "free")
+```
+
+
+**Lets examine the sentiments changes through the talk.**
+```{r, message=FALSE, out.width=600}
+senti_bing %>%
+  # count using four arguments
+  count(headline, speaker,index = row_number(), sentiment) %>%
+  # pivot sentiment and n wider
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  # use mutate to compute net sentiment
+  mutate(sentiment = positive - negative) %>%
+  # put index on x-axis, sentiment on y-axis, and map adult/child to fill
+  ggplot(aes(index, sentiment, fill = speaker)) +
+  # make a bar chart with geom_col()
+  geom_col() +
+  # make small multiples for each title with facet_wrap()
+  facet_wrap(~ speaker, scales = "free_x")
+```
+
+
+**Lets determine the sentiments of speaker.**
+```{r, message=FALSE, out.width=600, warning=FALSE}
+senti_nrc <- speakers_sentiment %>%
+  inner_join(get_sentiments("nrc"))   #joining the lexicon "nrc" to the filtered data
+
+senti_nrc %>%
+  count(sentiment) %>%   # count sentiments
+  mutate(sentiment = reorder(sentiment, n))%>%   #mutate the sentiment and rearrange it in accordance with the sentiment and the frequency of occurrence
+  ggplot(aes(n,sentiment)) + geom_col(fill = "lightgreen") + labs(y = NULL) # graph that shows the frequency of occurrence of words and the feelings attached to them
+
+```
+
+<span style="color: darkgreen;"> **Odds ratio** </span> 
+**Lets determine the Odds ratio of speaker.**
+```{r, message=FALSE, out.width=600, warning=FALSE}
+senti_nrc_odd <- speakers_sentiment %>%
+  inner_join(get_sentiments("nrc"))  #joining the lexicon "nrc" to the filtered senti_nrc_odd data
+
+odd_ratio <-senti_nrc_odd %>%
+  count(speaker,sentiment) %>%  #count speakers and sentiment
+  pivot_wider(names_from = "speaker", values_from = "n", values_fill = 0) %>%  # Make a column with n and the speakers in it.
+  mutate(OR = compute_OR(`Jennifer Lin`, `David Lang`, correction = FALSE), log_OR = log(OR), sentiment = reorder(sentiment, log_OR)) # mutate a column OR by replacing it with the odds ratio for both speakers.
+
+
+senti_nrc_odd %>%
+  count(speaker,sentiment) %>%
+  pivot_wider(names_from = "speaker", values_from = "n", values_fill = 0) %>%
+  mutate(OR = compute_OR(`Jennifer Lin`, `David Lang`, correction = FALSE), log_OR = log(OR), sentiment = reorder(sentiment, log_OR)) %>%
+  ggplot(aes(sentiment, log_OR, fill = log_OR < 0)) + geom_col(show.legend = FALSE) + ylab("Log odds ratio") + ggtitle("Sentiment Analysis") + coord_flip()+scale_fill_manual(name = "", values = c("yellow", "lightblue")) #Create a graph depending on the sentiments' log_OR value.
+
+```
+
+## Conclusion
+We can observe that David Lang's talk is about creativity and teamwork, whereas Jennifer Lin's talk focuses on music. The sentiment scores for the two talks are comparable, with Jennifer Lin's talk scoring slightly higher on the positive scale. In a nutshell, the text analysis reveals that although the topics and word choices of Jennifer Lin and David Lang's talks differ, they score similarly on sentiment.
+
+

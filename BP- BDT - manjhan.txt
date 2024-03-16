@@ -1,0 +1,45 @@
+DATA:
+  lo_busobj   TYPE REF TO if_reca_bus_object,
+  ld_activity TYPE recaactivity.
+
+CALL FUNCTION 'RERO_GET_BUSOBJ'
+    IMPORTING
+      eo_busobj   = lo_busobj
+      ed_activity = ld_activity.
+
+
+APPLICATION NAME -> BUS1
+Yes, we have defined views and the below mentioned BDT Settings have been done.
+
+1. Create the function group and the Sub screen for application
+
+2. Create New Application for screen
+
+3. Create New Dataset for the application
+
+4. Create field groups as required
+
+5. Create a view & Assign the field groups to the views
+
+6. Create section & Assign View to the section
+
+7. Create Screen & Assign the section to the screen
+
+8. Create the screen sequence & Assign the Screen
+
+9. Create a screen sequence category & assign the screen sequence to it
+
+10. Add screen with the standard screen sequence so that it would appear with the standard TABS (Added screen to the standard BUP001 Screen Sequence)
+
+11. Create BP Views & Add datasets (standard & custom) to the selected BP VIEW
+
+12. Add the calling application to selected BP VIEW
+
+Since we have enabled the automatic creation of BP's whenever customer master is created, these BDT settings are affecting the BP Master Creation (both automatic & maual).
+
+Please let us know if we missed any other steps.
+*****************************************************************
+"5.2 Scenario B – Saving data in core table appends You have to extended the complex structure CVIS_EI_EXTERN with your appended fields in the structures DATA and DATAX in the corresponding core table section. After that, there is nothing more to do here. Since all of your appended fields exist now in CVIS_EI_EXTERN these will be processed by the CVI standard functionality."
+Z_CRF (PSL)
+ZFLTR0
+

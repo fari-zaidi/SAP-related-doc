@@ -1,0 +1,2097 @@
+************************************************************************
+*   P2P Report Phase 2
+************************************************************************
+...      19  unchanged lines omitted
+*======================================================================*
+* CHANGE LOG:                                                          *
+* CHG DATE        AUTHOR          REQUEST #   DESCRIPTION              *
+* 05-Oct-2022     Faryal Zaidi    R3DK935041                  *
+*======================================================================*
+*                                                                      *
+*======================================================================*
+* PROGRAM NAME :  ZMM_GR2                                      *
+* TRANSACTION CODE:  ZMM_P2P_V2                                        *
+* ABAP Consultant: #Faryal Zaidi                                       *
+* DATE :    05-Oct-2022                                               *
+* REQUEST : R3DK935041                                                *
+*                                                                      *
+...       7  unchanged lines omitted
+************************************************************************
+
+
+TABLES: EBAN, EKKO, EKPO, EKBE, MKPF, MSEG, RSEG, BSEG.
+
+TYPES: BEGIN OF TY_ITAB,
+
+
+         EBELN     TYPE EKKO-EBELN,
+         EBELP     TYPE EKPO-EBELP,
+        BEDAT     TYPE EKKO-BEDAT,
+        AEDAT     TYPE EKKO-AEDAT,
+        BSART     TYPE EKKO-BSART,
+        ERNAM1    TYPE EKKO-ERNAM,
+        FRGKE     TYPE EKKO-FRGKE,
+
+*************************************
+        EKGRP     TYPE EKKO-EKGRP,
+*************************************
+        WERKS     TYPE EKPO-WERKS,
+        TXZ01     TYPE EKPO-TXZ01,
+        EINDT     TYPE EKET-EINDT,
+        BUKRS     TYPE EKKO-BUKRS,
+        LIFNR     TYPE EKKO-LIFNR,
+
+
+        NAME1     TYPE LFA1-NAME1,
+
+        BANFN     TYPE EBAN-BANFN,
+        BNFPO     TYPE EBAN-BNFPO,
+        ERNAM     TYPE EBAN-ERNAM,
+        BADAT     TYPE EBAN-BADAT,
+
+
+*************************************
+        EKGRP     TYPE EBAN-EKGRP,
+        ERDAT     TYPE EBAN-ERDAT,
+        MATNR     TYPE EBAN-MATNR,
+        FRGDT     TYPE EBAN-FRGDT,
+        PO_TO_GR  TYPE I, "EKKO-AEDAT,
+        PO_TO_DD  TYPE I,
+        DEL_TO_GR TYPE I, "EKBE-BUDAT,
+        PR_APP_PO TYPE I,
+         STATU     TYPE EBAN-STATU,
+         ZBEDAT    TYPE EKKO-BEDAT,
+         LPEIN     TYPE EKET-LPEIN,
+
+
+
+
+
+
+
+
+
+
+
+
+**************************************
+
+         ZBELNR    TYPE EKBE-BELNR,      "MATERIAL DOC NO.
+         ZBUDAT    TYPE EKBE-BUDAT,      "GR POSTING DATE
+         ZERNAM    TYPE EKBE-ERNAM,
+         VGABE     TYPE EKBE-VGABE,
+         BWART     TYPE EKBE-BWART,
+         LFBNR     TYPE EKBE-LFBNR,
+         MBLNR     TYPE MKPF-MBLNR,
+
+         GJAHR     TYPE RSEG-GJAHR,
+         BELNR     TYPE RSEG-BELNR,
+         ZUONR     TYPE RBKP-ZUONR,
+         BUDAT     TYPE RBKP-BUDAT,
+         BLDAT     TYPE RBKP-BLDAT,
+         RBSTAT    TYPE RBKP-RBSTAT,
+         AUGBL     TYPE BSEG-AUGBL,
+         ZBUDAT1   TYPE ZAUDIT-BUDAT,
+         ZBUDAT2   TYPE BKPF-BUDAT,
+
+         ZPRAPDA   TYPE D,              "PR APPROVAL DATE
+         ZPRPO     TYPE I,             "DIFF. IN PR APPROVAL & PO DATE
+         ZPOGR     TYPE I,             "DIFF. IN PO DELIVERY AND GR DATE
+         ZINVPKPG  TYPE I,             "DIFF. IN INVOICE POSTING PARKING
+         ZPOINV    TYPE I,               "DIFF. IN PO AND INVOICE POSTIN
+
+         ZGRINV    TYPE I,               "DIFF. IN GR AND INVOICE POSTIN
+
+         ZPRPAY    TYPE I,               "DIFF. IN PR TO PAYMENT DATE
+         ZPOPAY    TYPE I,               "DIFF. IN PO TO PAYMENT DATE
+         ZGRPAY    TYPE I,               "DIFF. IN GR TO PAYMENT DATE
+         ZINVPAY   TYPE I,              "DIFF IN INVOICE TO PAYMENT
+************************************************************************
+
+         CLR_DOC   TYPE BSEG-AUGBL,          " Payment Document
+         CLR_DATE  TYPE BSAK-AUGDT,         " Payment Date
+         INV_AMNT  TYPE BSEG-DMBTR,         " Invoice Amount
+         CHARG     TYPE MCHA-CHARG,            " Batch
+         GR_AMNT   TYPE BSEG-DMBTR,          " GR Amount
+         QC_SAT    TYPE C LENGTH 1,           " QC Status
+         ZBLK      TYPE C LENGTH 1,             " Block
+         VDATUM    TYPE QAVE-VDATUM.          " Quality Releasing Date
+
+
+TYPES : END OF TY_ITAB.
+TYPES: BEGIN OF ty_itab1,
+         bwart TYPE ekbe-bwart,
+         lfbnr TYPE ekbe-lfbnr.
+TYPES: END OF ty_itab1.
+
+DATA: itab  TYPE STANDARD TABLE OF ty_itab WITH HEADER LINE,
+      itab2 TYPE STANDARD TABLE OF ty_itab WITH HEADER LINE,
+      itab1 TYPE STANDARD TABLE OF ty_itab1 WITH HEADER LINE.
+
+DATA: it_fieldcat TYPE slis_t_fieldcat_alv,
+      wa_fieldcat LIKE LINE OF it_fieldcat.
+
+DATA :it_listheader TYPE slis_t_listheader,
+      wa_listheader TYPE slis_listheader,
+      gs_layout     TYPE slis_layout_alv,
+      gs_variant    LIKE disvariant,
+      it_sort       TYPE slis_t_sortinfo_alv,
+      wa_sort       TYPE slis_sortinfo_alv.
+
+
+SELECTION-SCREEN: BEGIN OF BLOCK bl1 WITH FRAME TITLE text-001.
+SELECT-OPTIONS:
+
+                SO_AEDAT FOR EKKO-AEDAT,
+                SO_EBELN FOR EKKO-EBELN,
+                SO_LIFNR FOR EKKO-LIFNR,
+                SO_BSART FOR EKKO-BSART,
+                SO_WERKS FOR EKPO-WERKS,
+
+                SO_BANFN FOR EBAN-BANFN,
+                SO_ERDAT FOR EBAN-ERDAT, "
+                SO_BADAT FOR EBAN-BADAT,
+                SO_MATNR FOR EBAN-MATNR, "
+                SO_FRGDT FOR EBAN-FRGDT, "
+                SO_EKGRP FOR EKKO-EKGRP
+.
+PARAMETERS:     p_ekorg LIKE ekko-ekorg DEFAULT '1000'.
+
+
+SELECTION-SCREEN: END OF BLOCK bl1.
+SELECTION-SCREEN: BEGIN OF BLOCK CHK WITH FRAME TITLE TEXT-002.
+
+
+
+
+
+SELECTION-SCREEN: BEGIN OF LINE.
+SELECTION-SCREEN: COMMENT 2(25) TEXT-005.
+
+PARAMETERS CHK_ALL AS CHECKBOX.
+SELECTION-SCREEN : END OF LINE.
+
+SELECTION-SCREEN: BEGIN OF LINE.
+SELECTION-SCREEN: COMMENT 2(25) TEXT-004.
+
+PARAMETERS CHK_STAT AS CHECKBOX.
+SELECTION-SCREEN : END OF LINE.
+
+***                                                    ***
+
+
+
+
+
+
+SELECTION-SCREEN: BEGIN OF LINE.
+SELECTION-SCREEN: COMMENT 2(25) TEXT-007.
+
+PARAMETERS CHK_PO AS CHECKBOX.
+SELECTION-SCREEN : END OF LINE.
+
+SELECTION-SCREEN: BEGIN OF LINE.
+SELECTION-SCREEN: COMMENT 2(25) TEXT-006.
+PARAMETERS CHK_PR AS CHECKBOX.
+SELECTION-SCREEN : END OF LINE.
+
+***                                                    ***
+
+SELECTION-SCREEN: END OF BLOCK CHK.
+
+START-OF-SELECTION.
+
+  BREAK HAHMED.
+
+*******START OF EOC by SAUD AQEEL.
+
+  IF ( CHK_ALL IS NOT INITIAL ) AND ( CHK_STAT IS INITIAL ).
+
+***                                                    ***
+       SELECT
+       A~EBELN, A~EBELP, A~WERKS, A~TXZ01,
+       B~BEDAT, B~ERNAM AS ERNAM1, B~BSART, B~LIFNR, B~AEDAT, B~FRGKE, B
+       C~EINDT, C~LPEIN,
+       D~BELNR AS ZBELNR, D~VGABE, D~BWART, D~BUDAT AS ZBUDAT, D~ERNAM A
+       ZERNAM, D~LFBNR,
+       E~BELNR AS BELNR, E~GJAHR AS GJAHR,
+       F~BANFN, F~BNFPO, F~BADAT, F~ERNAM, F~ERDAT, F~MATNR, F~FRGDT, F~
+       G~BUDAT AS ZBUDAT1,
+       H~BUDAT AS BUDAT, H~RBSTAT, H~BLDAT, H~ZUONR,
+       I~NAME1
+
+       FROM EKPO AS A
+       INNER JOIN EKKO AS B ON B~EBELN = A~EBELN
+       INNER JOIN EKBE AS D ON ( D~EBELN = A~EBELN AND D~EBELP = A~EBELP
+       INNER JOIN EKET AS C ON ( C~EBELN = A~EBELN AND C~EBELP = A~EBELP
+       INNER JOIN LFA1 AS I ON I~LIFNR = B~LIFNR
+       LEFT OUTER JOIN RSEG AS E ON ( E~EBELN = D~EBELN AND E~EBELP = D~
+       LEFT OUTER JOIN EBAN AS F ON ( F~BANFN = A~BANFN AND F~BNFPO = A~
+       LEFT OUTER JOIN ZAUDIT AS G ON ( G~BELNR = E~BELNR AND G~GJAHR =
+       LEFT OUTER JOIN RBKP AS H ON ( H~BELNR = E~BELNR AND H~GJAHR = E~
+
+       INTO CORRESPONDING FIELDS OF TABLE @ITAB
+       WHERE
+       B~AEDAT IN @SO_AEDAT
+       AND B~EBELN IN @SO_EBELN
+       AND B~BSART IN @SO_BSART
+       AND B~LIFNR IN @SO_LIFNR
+       AND B~BSART NE 'UB'
+       AND B~EKORG EQ @P_EKORG
+       AND A~LOEKZ NE 'L'
+       AND A~WERKS IN @SO_WERKS
+       AND F~BANFN IN @SO_BANFN
+       AND F~BADAT IN @SO_BADAT
+       AND F~ERDAT IN @SO_ERDAT
+       AND F~MATNR IN @SO_MATNR
+       AND F~FRGDT IN @SO_FRGDT
+       AND B~EKGRP IN @SO_EKGRP
+       AND D~VGABE = '1'.
+***                                                    ***
+
+
+
+
+
+
+
+    ELSEIF ( CHK_STAT IS NOT INITIAL ) AND ( CHK_ALL IS INITIAL ).
+
+
+
+
+
+***                                                    ***
+       SELECT
+       A~EBELN, A~EBELP, A~WERKS, A~TXZ01,
+       B~BEDAT, B~ERNAM AS ERNAM1, B~BSART, B~LIFNR, B~AEDAT, B~FRGKE, B
+       C~EINDT, C~LPEIN,
+       D~BELNR AS ZBELNR, D~VGABE, D~BWART, D~BUDAT AS ZBUDAT, D~ERNAM A
+       ZERNAM, D~LFBNR,
+       E~BELNR AS BELNR, E~GJAHR AS GJAHR,
+       F~BANFN, F~BNFPO, F~BADAT, F~ERNAM, F~ERDAT, F~MATNR, F~FRGDT, F~
+       G~BUDAT AS ZBUDAT1,
+       H~BUDAT AS BUDAT, H~RBSTAT, H~BLDAT, H~ZUONR,
+       I~NAME1
+
+       FROM EKPO AS A
+       INNER JOIN EKKO AS B ON B~EBELN = A~EBELN
+       INNER JOIN EKBE AS D ON ( D~EBELN = A~EBELN AND D~EBELP = A~EBELP
+       INNER JOIN EKET AS C ON ( C~EBELN = A~EBELN AND C~EBELP = A~EBELP
+       INNER JOIN LFA1 AS I ON I~LIFNR = B~LIFNR
+       LEFT OUTER JOIN RSEG AS E ON ( E~EBELN = D~EBELN AND E~EBELP = D~
+       LEFT OUTER JOIN EBAN AS F ON ( F~BANFN = A~BANFN AND F~BNFPO = A~
+       LEFT OUTER JOIN ZAUDIT AS G ON ( G~BELNR = E~BELNR AND G~GJAHR =
+       LEFT OUTER JOIN RBKP AS H ON ( H~BELNR = E~BELNR AND H~GJAHR = E~
+
+       INTO CORRESPONDING FIELDS OF TABLE @ITAB
+       WHERE
+       B~AEDAT IN @SO_AEDAT
+       AND B~EBELN IN @SO_EBELN
+       AND B~BSART IN @SO_BSART
+       AND B~LIFNR IN @SO_LIFNR
+       AND B~PROCSTAT IN ( '02' , '05' )
+       AND B~BSART NE 'UB'
+       AND B~EKORG EQ @P_EKORG
+       AND A~LOEKZ NE 'L'
+       AND A~WERKS IN @SO_WERKS
+       AND F~BANFN IN @SO_BANFN
+       AND F~BADAT IN @SO_BADAT
+       AND F~ERDAT IN @SO_ERDAT
+       AND F~MATNR IN @SO_MATNR
+       AND F~FRGDT IN @SO_FRGDT
+       AND B~EKGRP IN @SO_EKGRP
+       AND D~VGABE = '1'.
+***                                                    ***
+
+
+
+    ELSEIF ( CHK_STAT IS INITIAL ) AND ( CHK_ALL IS INITIAL ).
+
+
+
+
+
+
+
+***                                                    ***
+       SELECT
+       A~EBELN, A~EBELP, A~WERKS, A~TXZ01,
+       B~BEDAT, B~ERNAM AS ERNAM1, B~BSART, B~LIFNR, B~AEDAT, B~FRGKE, B
+       C~EINDT, C~LPEIN,
+       D~BELNR AS ZBELNR, D~VGABE, D~BWART, D~BUDAT AS ZBUDAT, D~ERNAM A
+       ZERNAM, D~LFBNR,
+       E~BELNR AS BELNR, E~GJAHR AS GJAHR,
+       F~BANFN, F~BNFPO, F~BADAT, F~ERNAM, F~ERDAT, F~MATNR, F~FRGDT,  F
+       G~BUDAT AS ZBUDAT1,
+       H~BUDAT AS BUDAT, H~RBSTAT, H~BLDAT, H~ZUONR,
+       I~NAME1
+
+       FROM EKPO AS A
+       INNER JOIN EKKO AS B ON B~EBELN = A~EBELN
+       INNER JOIN EKBE AS D ON ( D~EBELN = A~EBELN AND D~EBELP = A~EBELP
+       INNER JOIN EKET AS C ON ( C~EBELN = A~EBELN AND C~EBELP = A~EBELP
+       INNER JOIN LFA1 AS I ON I~LIFNR = B~LIFNR
+       LEFT OUTER JOIN RSEG AS E ON ( E~EBELN = D~EBELN AND E~EBELP = D~
+       LEFT OUTER JOIN EBAN AS F ON ( F~BANFN = A~BANFN AND F~BNFPO = A~
+       LEFT OUTER JOIN ZAUDIT AS G ON ( G~BELNR = E~BELNR AND G~GJAHR =
+       LEFT OUTER JOIN RBKP AS H ON ( H~BELNR = E~BELNR AND H~GJAHR = E~
+
+       INTO CORRESPONDING FIELDS OF TABLE @ITAB
+       WHERE
+       B~AEDAT IN @SO_AEDAT
+       AND B~EBELN IN @SO_EBELN
+       AND B~BSART IN @SO_BSART
+       AND B~LIFNR IN @SO_LIFNR
+       AND B~PROCSTAT IN ( '02' , '05' )
+       AND B~BSART NE 'UB'
+       AND B~EKORG EQ @P_EKORG
+       AND A~LOEKZ NE 'L'
+       AND A~WERKS IN @SO_WERKS
+       AND F~BANFN IN @SO_BANFN
+       AND F~BADAT IN @SO_BADAT
+       AND F~ERDAT IN @SO_ERDAT
+       AND F~MATNR IN @SO_MATNR
+       AND F~FRGDT IN @SO_FRGDT
+       AND B~EKGRP IN @SO_EKGRP
+       AND D~VGABE = '1'.
+
+***                                                    ***
+
+
+    ELSEIF ( CHK_STAT IS NOT INITIAL ) AND ( CHK_ALL IS NOT INITIAL ).
+
+***                                                    ***
+       SELECT
+       A~EBELN, A~EBELP, A~WERKS, A~TXZ01,
+       B~BEDAT, B~ERNAM AS ERNAM1, B~BSART, B~LIFNR, B~AEDAT, B~FRGKE, B
+       C~EINDT, C~LPEIN,
+       D~BELNR AS ZBELNR, D~VGABE, D~BWART, D~BUDAT AS ZBUDAT, D~ERNAM A
+       ZERNAM, D~LFBNR,
+       E~BELNR AS BELNR, E~GJAHR AS GJAHR,
+       F~BANFN, F~BNFPO, F~BADAT, F~ERNAM, F~ERDAT, F~MATNR, F~FRGDT,  F
+       G~BUDAT AS ZBUDAT1,
+       H~BUDAT AS BUDAT, H~RBSTAT, H~BLDAT, H~ZUONR,
+       I~NAME1
+
+       FROM EKPO AS A
+       INNER JOIN EKKO AS B ON B~EBELN = A~EBELN
+       INNER JOIN EKBE AS D ON ( D~EBELN = A~EBELN AND D~EBELP = A~EBELP
+       INNER JOIN EKET AS C ON ( C~EBELN = A~EBELN AND C~EBELP = A~EBELP
+       INNER JOIN LFA1 AS I ON I~LIFNR = B~LIFNR
+       LEFT OUTER JOIN RSEG AS E ON ( E~EBELN = D~EBELN AND E~EBELP = D~
+       LEFT OUTER JOIN EBAN AS F ON ( F~BANFN = A~BANFN AND F~BNFPO = A~
+       LEFT OUTER JOIN ZAUDIT AS G ON ( G~BELNR = E~BELNR AND G~GJAHR =
+       LEFT OUTER JOIN RBKP AS H ON ( H~BELNR = E~BELNR AND H~GJAHR = E~
+
+       INTO CORRESPONDING FIELDS OF TABLE @ITAB
+       WHERE
+       B~AEDAT IN @SO_AEDAT
+       AND B~EBELN IN @SO_EBELN
+       AND B~BSART IN @SO_BSART
+       AND B~LIFNR IN @SO_LIFNR
+       AND B~PROCSTAT IN ( '02' , '05' )
+       AND B~BSART NE 'UB'
+       AND B~EKORG EQ @P_EKORG
+       AND A~LOEKZ NE 'L'
+       AND A~WERKS IN @SO_WERKS
+       AND F~BANFN IN @SO_BANFN
+       AND F~BADAT IN @SO_BADAT
+       AND F~ERDAT IN @SO_ERDAT
+       AND F~MATNR IN @SO_MATNR
+       AND F~FRGDT IN @SO_FRGDT
+       AND B~EKGRP IN @SO_EKGRP
+       AND D~VGABE = '1'.
+***                                                    ***
+
+
+
+  ENDIF.
+
+*******END OF EOC by SAUD AQEEL.
+
+END-OF-SELECTION.
+
+  ITAB2[] = ITAB[] .
+  DELETE ITAB2 WHERE BWART EQ '101'.
+
+  IF ( CHK_PO IS INITIAL ).
+  LOOP AT ITAB2.
+    READ TABLE ITAB WITH KEY LFBNR = ITAB1-LFBNR.
+
+     DELETE ITAB WHERE LFBNR = ITAB2-LFBNR.
+
+
+
+
+
+
+
+
+
+   ENDLOOP.
+   ENDIF.
+
+ IF ( CHK_PR IS NOT INITIAL ).
+        DELETE ITAB WHERE STATU ne 'N' .
+   ENDIF.
+
+   SHIFT ITAB-LIFNR LEFT DELETING LEADING '0'.
+
+  SORT ITAB[] BY EBELN EBELP.
+
+
+
+
+
+
+  IF ITAB[] IS NOT INITIAL.
+    SELECT * FROM QALS INTO TABLE @DATA(LT_QALS)
+      FOR ALL ENTRIES IN @ITAB
+      WHERE EBELN = @ITAB-EBELN
+      AND   EBELP = @ITAB-EBELP.
+  ENDIF.
+
+
+
+  LOOP AT ITAB.
+
+************************************************************************
+
+    IF NOT ITAB-AEDAT IS INITIAL.
+    SELECT SINGLE BLDAT FROM MKPF INTO @Data(lv_bldat) WHERE MBLNR eq @I
+      IF NOT lv_bldat IS INITIAL.
+        ITAB-PO_TO_GR = lv_bldat - ITAB-AEDAT . "PO to GR
+        else.
+        ITAB-PO_TO_GR = lv_bldat - ITAB-AEDAT.
+      ENDIF.
+    ENDIF.
+
+
+    IF NOT ITAB-ZBEDAT IS INITIAL.
+        ITAB-PO_TO_DD =  ITAB-EINDT - ITAB-ZBEDAT. "PO to DD
+        else.
+        ITAB-PO_TO_DD =  ITAB-EINDT - ITAB-ZBEDAT.
+    ENDIF.
+
+    IF NOT ITAB-ZBUDAT IS INITIAL.
+        ITAB-DEL_TO_GR = ITAB-ZBUDAT - ITAB-EINDT. "DD to GR
+        else.
+        ITAB-DEL_TO_GR = ITAB-ZBUDAT - ITAB-EINDT.
+    ENDIF.
+************************************************************************
+    IF NOT ITAB-BELNR IS INITIAL.
+
+      SELECT SINGLE AUGBL FROM BSEG
+        INTO ITAB-AUGBL
+        WHERE BELNR = ITAB-BELNR
+        AND GJAHR = ITAB-GJAHR
+        AND EBELN = ITAB-EBELN
+        AND EBELP = ITAB-EBELP.
+
+      SELECT SINGLE AUGBL AS CLR_DOC FROM BSEG
+      " ADDED BY SAUD AQEEL 13.03.2022
+      INTO ITAB-CLR_DOC
+      WHERE BELNR = ITAB-BELNR
+      AND GJAHR = ITAB-GJAHR
+      AND KOART = 'K'.
+
+      SELECT SINGLE AUGDT AS CLR_DATE FROM BSEG
+      " ADDED BY SAUD AQEEL 13.03.2022
+      INTO ITAB-CLR_DATE
+      WHERE BELNR = ITAB-BELNR
+      AND GJAHR = ITAB-GJAHR
+      AND KOART = 'K'.
+
+      SELECT SINGLE DMBTR AS INV_AMNT FROM BSEG
+      " ADDED BY SAUD AQEEL 13.03.2022
+      INTO ITAB-INV_AMNT
+      WHERE BELNR = ITAB-BELNR
+      AND GJAHR = ITAB-GJAHR
+      AND KOART = 'K'.
+
+    ENDIF.
+
+ IF NOT ITAB-ZBELNR IS INITIAL.
+       SELECT SINGLE CHARG FROM MSEG
+         INTO ITAB-CHARG
+         WHERE MBLNR = ITAB-ZBELNR
+         AND   EBELN = ITAB-EBELN
+         AND   EBELP = ITAB-EBELP
+         AND   BWART = '101'.
+      SELECT SINGLE DMBTR FROM MSEG
+        INTO ITAB-GR_AMNT
+        WHERE MBLNR = ITAB-ZBELNR
+        AND   EBELN = ITAB-EBELN
+        AND   EBELP = ITAB-EBELP
+        AND   BWART = '101'.
+
+      SELECT SINGLE PRUEFLOS FROM QALS
+        INTO @DATA(LV_PRUEFLOS)
+        WHERE CHARG = @ITAB-CHARG
+        AND   MBLNR = @ITAB-ZBELNR.
+
+      SELECT SINGLE VCODE FROM QAVE
+        INTO @DATA(LV_VCODE)
+        WHERE PRUEFLOS = @LV_PRUEFLOS.
+
+      SELECT SINGLE VDATUM FROM QAVE
+        INTO @DATA(LV_VDATUM)
+        WHERE PRUEFLOS = @LV_PRUEFLOS.
+
+      IF LV_VCODE = '0001'.
+        ITAB-VDATUM = LV_VDATUM.
+      ELSE.
+        ITAB-VDATUM = ''.
+      ENDIF.
+
+    ENDIF.
+
+    SELECT SINGLE * FROM MCHB INTO @DATA(LS_MCHB) WHERE CHARG = @ITAB-CH
+
+    IF LS_MCHB-CINSM IS NOT INITIAL AND LS_MCHB-CSPEM IS INITIAL.
+      ITAB-QC_SAT = ABAP_TRUE.
+      ITAB-ZBLK = ABAP_FALSE.
+    ELSEIF LS_MCHB-CSPEM IS NOT INITIAL AND LS_MCHB-CINSM IS INITIAL.
+      ITAB-QC_SAT = ABAP_FALSE.
+      ITAB-ZBLK = ABAP_TRUE.
+    ELSEIF LS_MCHB-CSPEM IS NOT INITIAL AND LS_MCHB-CINSM IS NOT INITIAL
+      ITAB-QC_SAT = ABAP_TRUE.
+      ITAB-ZBLK = ABAP_TRUE.
+    ELSE.
+      ITAB-QC_SAT = ABAP_FALSE.
+      ITAB-ZBLK = ABAP_FALSE.
+    ENDIF.
+
+    IF NOT ITAB-AUGBL IS INITIAL.
+      SELECT SINGLE BUDAT FROM BKPF
+      INTO ITAB-ZBUDAT2
+        WHERE BELNR = ITAB-AUGBL.
+    ENDIF.
+
+    IF NOT ITAB-BANFN IS INITIAL.
+      SELECT SINGLE UDATE FROM CDHDR
+       INTO ITAB-ZPRAPDA
+         WHERE OBJECTCLAS EQ 'BANF'
+          AND OBJECTID = ITAB-BANFN
+          AND TCODE IN ('ME54N', 'ME54').
+    ENDIF.
+
+
+***DIFFERENCE IN PR APPROVAL TO PO CREATION DATE********
+    IF NOT ITAB-ZPRAPDA IS INITIAL.
+      ITAB-ZPRPO = ITAB-AEDAT - ITAB-ZPRAPDA.
+    ENDIF.
+
+**** DIFFERENCE IN PO DELIVERY TO GR DATE
+
+
+    IF NOT ITAB-ZBUDAT IS INITIAL.
+      ITAB-ZPOGR = ITAB-ZBUDAT - ITAB-EINDT.
+    ENDIF.
+
+
+*****************************************************************
+
+    IF NOT ITAB-ZPRAPDA IS INITIAL.
+        ITAB-PR_APP_PO = ITAB-AEDAT - ITAB-ZPRAPDA ."ITAB-ERDAT - ITAB-A
+        else.
+        ITAB-PR_APP_PO = ITAB-AEDAT - ITAB-ZPRAPDA. "ITAB-ERDAT - ITAB-A
+
+    ENDIF.
+************************************************************************
+
+    IF NOT ITAB-BUDAT IS INITIAL.
+
+      IF NOT ITAB-ZBUDAT1 IS INITIAL.
+        ITAB-ZINVPKPG = ITAB-BUDAT - ITAB-ZBUDAT1.
+        " DIFF IN INVOICE POSTING AND PARKING
+
+     ENDIF.
+
+     ITAB-ZPOINV = ITAB-BUDAT -  ITAB-AEDAT.  " PO TO INVOICE POSTING
+     ITAB-ZGRINV = ITAB-BUDAT -  ITAB-ZBUDAT. " GR TO INVOICE POSTING
+
+   ENDIF.
+
+**** Calculation of Payment date Differences*****
+
+
+
+    IF NOT ITAB-ZBUDAT2 IS INITIAL.
+
+
+
+      IF NOT ITAB-ZPRAPDA IS INITIAL.
+        ITAB-ZPRPAY = ITAB-ZBUDAT2 - ITAB-ZPRAPDA. "PR TO PAYMENT
+
+
+
+
+      ENDIF.
+
+      ITAB-ZPOPAY = ITAB-ZBUDAT2 - ITAB-AEDAT.    " PO TO PAYMENT
+      ITAB-ZGRPAY = ITAB-ZBUDAT2 - ITAB-ZBUDAT.    "GR TO PAYMENT
+      ITAB-ZINVPAY = ITAB-ZBUDAT2 - ITAB-BUDAT.    " INVOICE TO PAYMENT
+
+    ENDIF.
+
+   MODIFY ITAB.
+   CLEAR :  LV_PRUEFLOS, LV_VCODE, LV_VDATUM.", LV_NUM.
+   CLEAR lv_bldat.
+
+******************************************************************************************************************************
+******************************************************************************************************************************
+* IF ( CHK_PO IS NOT INITIAL ) AND ( CHK_PR IS NOT INITIAL ).
+
+***----------------------------------------------------***
+
+***----------------------------------------------------***
+
+
+*    ELSEIF ( CHK_PR IS NOT INITIAL ) AND ( CHK_PO IS INITIAL ).
+* IF ( CHK_PR IS NOT INITIAL ).
+*****----------------------------------------------------***
+**    SELECT SINGLE STATU FROM EBAN INTO @DATA(LS_STATU)
+**      WHERE BANFN = @ITAB-BANFN
+**      AND STATU = 'N'.
+**
+**       if LS_STATU IS INITIAL.
+*
+*       DELETE ITAB WHERE STATU ne 'N' .
+**       CLEAR LS_STATU.
+**       endif.
+**       CLEAR LS_STATU.
+*  ENDIF.
+***----------------------------------------------------***
+
+
+*    ELSEIF ( CHK_PR IS INITIAL ) AND ( CHK_PO IS INITIAL ).
+*
+****----------------------------------------------------***
+*
+****----------------------------------------------------***
+*
+*
+*    ELSEIF ( CHK_PR IS NOT INITIAL ) AND ( CHK_PO IS NOT INITIAL ).
+*
+****----------------------------------------------------***
+*
+**  DELETE ITAB WHERE BWART EQ '101'.
+*
+*    SELECT SINGLE STATU FROM EBAN INTO LS_STATU
+*      WHERE BANFN = ITAB-BANFN
+*      AND STATU = 'N'.
+*
+*       if LS_STATU IS INITIAL.
+*
+*       DELETE ITAB WHERE BANFN = ITAB-BANFN .
+*       CLEAR LS_STATU.
+*       endif.
+*       CLEAR LS_STATU.
+****----------------------------------------------------***
+*
+*
+*  ENDIF.
+
+
+
+******************************************************************************************************************************
+******************************************************************************************************************************
+******************************************************************************************************************************
+************************************************************************
+************************************************************************
+
+  ENDLOOP.
+
+  SORT ITAB.
+
+*IF ( CHK_PO IS NOT INITIAL ).
+*   DELETE ITAB WHERE BWART EQ '101'.
+*endif.
+****IF CHK_PO IS NOT INITIAL AND CHK_PR IS INITIAL.
+****
+*******----------------------------------------------------***
+****
+****  DELETE ITAB WHERE BWART EQ '101'.
+*******----------------------------------------------------***
+****
+****
+****    ELSEIF CHK_PR IS NOT INITIAL AND CHK_PO IS INITIAL.
+****
+****** SELECT
+******       A~EBELN, A~EBELP, A~WERKS, A~TXZ01,
+******       B~BEDAT, B~ERNAM AS ERNAM1, B~BSART, B~LIFNR, B~AEDAT, B~FRGKE, B~EKGRP,
+******       C~EINDT,
+******       D~BELNR AS ZBELNR, D~VGABE, D~BWART, D~BUDAT AS ZBUDAT, D~ERNAM AS
+******       ZERNAM, D~LFBNR,
+******       E~BELNR AS BELNR, E~GJAHR AS GJAHR,
+******       F~BANFN, F~BNFPO, F~BADAT, F~ERNAM, F~ERDAT, F~MATNR, F~FRGDT, "F~EKGRP,
+******       G~BUDAT AS ZBUDAT1,
+******       H~BUDAT AS BUDAT, H~RBSTAT, H~BLDAT, H~ZUONR,
+******       I~NAME1
+******
+******       FROM EKPO AS A
+******       INNER JOIN EKKO AS B ON B~EBELN = A~EBELN
+******       INNER JOIN EKBE AS D ON ( D~EBELN = A~EBELN AND D~EBELP = A~EBELP )
+******       INNER JOIN EKET AS C ON ( C~EBELN = A~EBELN AND C~EBELP = A~EBELP )
+******       INNER JOIN LFA1 AS I ON I~LIFNR = B~LIFNR
+******       LEFT OUTER JOIN RSEG AS E ON ( E~EBELN = D~EBELN AND E~EBELP = D~EBELP AND E~LFBNR = D~LFBNR )
+******       LEFT OUTER JOIN EBAN AS F ON ( F~BANFN = A~BANFN AND F~BNFPO = A~BNFPO )
+******       LEFT OUTER JOIN ZAUDIT AS G ON ( G~BELNR = E~BELNR AND G~GJAHR = E~GJAHR )
+******       LEFT OUTER JOIN RBKP AS H ON ( H~BELNR = E~BELNR AND H~GJAHR = E~GJAHR )
+******
+******       INTO CORRESPONDING FIELDS OF TABLE @ITAB
+******       WHERE
+*******       B~AEDAT IN @SO_AEDAT
+*******       AND B~EBELN IN @SO_EBELN
+*******       AND B~BSART IN @SO_BSART
+*******       AND B~LIFNR IN @SO_LIFNR
+*******       AND B~PROCSTAT IN ( '02' , '05' )
+*******       AND B~BSART NE 'UB'
+*******       AND B~EKORG EQ @P_EKORG
+*******       AND A~LOEKZ NE 'L'
+*******       AND A~WERKS IN @SO_WERKS
+******        F~BANFN IN @SO_BANFN.
+*******       AND F~BADAT IN @SO_BADAT
+*******       AND F~ERDAT IN @SO_ERDAT
+*******       AND F~MATNR IN @SO_MATNR
+*******       AND F~FRGDT IN @SO_FRGDT
+*******       AND B~EKGRP IN @SO_EKGRP
+*******       AND D~VGABE = '1'.
+****
+*******----------------------------------------------------***
+****IF ITAB[] IS NOT INITIAL.
+****  LOOP AT ITAB.
+****    SELECT SINGLE STATU FROM EBAN INTO @DATA(LS_STATU)
+****      WHERE BANFN = @ITAB-BANFN
+****      AND STATU = 'N'.
+****
+****       if LS_STATU IS INITIAL.
+****
+****       DELETE ITAB WHERE BANFN = ITAB-BANFN .
+****       CLEAR LS_STATU.
+****       endif.
+****CLEAR LS_STATU.
+****ENDLOOP.
+****  ENDIF.
+*******----------------------------------------------------***
+****
+****
+****    ELSEIF CHK_PR IS INITIAL AND CHK_PO IS INITIAL.
+****
+*******----------------------------------------------------***
+****
+*******----------------------------------------------------***
+****
+****
+****    ELSEIF CHK_PR IS NOT INITIAL AND CHK_PO IS NOT INITIAL.
+****
+*******----------------------------------------------------***
+****
+****  DELETE ITAB WHERE BWART EQ '101'.
+****
+****IF ITAB[] IS NOT INITIAL.
+****  LOOP AT ITAB.
+****    SELECT SINGLE STATU FROM EBAN INTO LS_STATU
+****      WHERE BANFN = ITAB-BANFN
+****      AND STATU = 'N'.
+****
+****       if LS_STATU IS INITIAL.
+****
+****       DELETE ITAB WHERE BANFN = ITAB-BANFN .
+****       CLEAR LS_STATU.
+****       endif.
+****CLEAR LS_STATU.
+****ENDLOOP.
+****  ENDIF.
+*******----------------------------------------------------***
+****
+****
+****  ENDIF.
+
+
+
+*=======================================================================
+*=================================================================*
+ *                                                              Fields in
+ *ALV
+
+
+   IF CHK_STAT IS NOT INITIAL.
+
+     WA_FIELDCAT-COL_POS   = '1'.
+     WA_FIELDCAT-FIELDNAME = 'BANFN'.
+     WA_FIELDCAT-TABNAME   = 'EBAN'.
+     WA_FIELDCAT-SELTEXT_M = 'PR Number'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '2'.
+     WA_FIELDCAT-FIELDNAME = 'BNFPO'.
+     WA_FIELDCAT-TABNAME   = 'EBAN'.
+     WA_FIELDCAT-SELTEXT_M = 'PR line Item'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '2.5'.
+     WA_FIELDCAT-FIELDNAME = 'EKGRP'.
+     WA_FIELDCAT-TABNAME   = 'EBAN'.
+     WA_FIELDCAT-SELTEXT_M = 'PR Purcahsing Group'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+     WA_FIELDCAT-COL_POS   = '3'.
+     WA_FIELDCAT-FIELDNAME = 'ERNAM'.
+     WA_FIELDCAT-TABNAME   = 'EBAN'.
+
+    WA_FIELDCAT-SELTEXT_M = 'PR Creator'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '3.5'.
+    WA_FIELDCAT-FIELDNAME = 'BADAT'.
+    WA_FIELDCAT-TABNAME   = 'EBAN'.
+    WA_FIELDCAT-SELTEXT_M = 'PR Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '4'.
+
+
+
+
+
+
+
+
+    WA_FIELDCAT-FIELDNAME = 'ZPRAPDA'.
+    WA_FIELDCAT-TABNAME   = 'EBAN'.
+    WA_FIELDCAT-SELTEXT_M = 'PR Approval Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '5'.
+    WA_FIELDCAT-FIELDNAME = 'EBELN'.
+    WA_FIELDCAT-TABNAME   = 'EKKO'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Number'.
+     WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '6'.
+     WA_FIELDCAT-FIELDNAME = 'EBELP'.
+     WA_FIELDCAT-TABNAME   = 'EKPO'.
+     WA_FIELDCAT-SELTEXT_M = 'PO Line Item'.
+     WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '7'.
+     WA_FIELDCAT-FIELDNAME = 'LIFNR'.
+     WA_FIELDCAT-TABNAME   = 'EKKO'.
+     WA_FIELDCAT-SELTEXT_M = 'Vendor Code'.
+     WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '8'.
+     WA_FIELDCAT-FIELDNAME = 'NAME1'.
+     WA_FIELDCAT-TABNAME   = 'lfa1'.
+     WA_FIELDCAT-SELTEXT_M = 'Vendor Name'.
+     WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '9'.
+     WA_FIELDCAT-FIELDNAME = 'ERNAM1'.
+     WA_FIELDCAT-TABNAME   = 'EKKO'.
+     WA_FIELDCAT-SELTEXT_M = 'PO Creator'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '10'.
+    WA_FIELDCAT-FIELDNAME = 'AEDAT'.
+    WA_FIELDCAT-TABNAME   = 'EKKO'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '11'.
+    WA_FIELDCAT-FIELDNAME = 'EINDT'.
+    WA_FIELDCAT-TABNAME   = 'EKET'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Delivery date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '12'.
+    WA_FIELDCAT-FIELDNAME = 'TXZ01'.
+    WA_FIELDCAT-TABNAME   = 'EKPO'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Short Text'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '13'.
+    WA_FIELDCAT-FIELDNAME = 'WERKS'.
+    WA_FIELDCAT-TABNAME   = 'EKPO'.
+    WA_FIELDCAT-SELTEXT_M = 'Plant'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '14'.
+    wa_fieldcat-fieldname = 'ZBELNR'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+     WA_FIELDCAT-COL_POS   = '15'.
+     WA_FIELDCAT-FIELDNAME = 'ZBUDAT'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'GR date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+wa_fieldcat-col_pos   = '16'.
+    wa_fieldcat-fieldname = 'ZERNAM'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR User'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+
+    wa_fieldcat-col_pos   = '17'.
+    wa_fieldcat-fieldname = 'BELNR'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+
+    wa_fieldcat-col_pos   = '18'.
+    wa_fieldcat-fieldname = 'ZUONR'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice Rec. Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '19'.
+     WA_FIELDCAT-FIELDNAME = 'ZBUDAT1'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'Parking Date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '20'.
+    wa_fieldcat-fieldname = 'BLDAT'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+
+     WA_FIELDCAT-COL_POS   = '21'.
+     WA_FIELDCAT-FIELDNAME = 'BUDAT'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'Invoice Posting Date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+ 
+
+    wa_fieldcat-col_pos   = '22'.
+    wa_fieldcat-fieldname = 'AUGBL'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR Clearing Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '23'.
+    wa_fieldcat-fieldname = 'ZBUDAT2'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR Clearing Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '24'.
+    wa_fieldcat-fieldname = 'ZPRPO'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'PR Approval to PO'.
+    "  WA_FIELDCAT-KEY      = 'X'.
+    wa_fieldcat-no_zero   = ' '.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '25'.
+     WA_FIELDCAT-FIELDNAME = 'ZPOGR'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'PO Del. to GR Date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '26'.
+    WA_FIELDCAT-FIELDNAME = 'ZINVPKPG'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Inv.Parking/Posting'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+
+    wa_fieldcat-col_pos   = '27'.
+    wa_fieldcat-fieldname = 'ZPOINV'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'PO to Invoice'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '28'.
+    wa_fieldcat-fieldname = 'ZGRINV'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR to Invoice'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '29'.
+    wa_fieldcat-fieldname = 'ZPRPAY'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'PR to Payment'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '30'.
+    wa_fieldcat-fieldname = 'ZPOPAY'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'PO to Payment'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '31'.
+    wa_fieldcat-fieldname = 'ZGRPAY'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR to Payment'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '32'.
+    wa_fieldcat-fieldname = 'ZINVPAY'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice to Payment'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '33'.
+    wa_fieldcat-fieldname = 'CLR_DOC'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Payment Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '34'.
+    wa_fieldcat-fieldname = 'CLR_DATE'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Payment Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '35'.
+    wa_fieldcat-fieldname = 'INV_AMNT'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice Amount'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '36'.
+    wa_fieldcat-fieldname = 'CHARG'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Batch'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '37'.
+    wa_fieldcat-fieldname = 'GR_AMNT'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR Amount'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '38'.
+    wa_fieldcat-fieldname = 'QC_SAT'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'QC Status'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '39'.
+    wa_fieldcat-fieldname = 'ZBLK'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Block'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    WA_FIELDCAT-COL_POS   = '40'.
+    WA_FIELDCAT-FIELDNAME = 'VDATUM'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Quality Releasing Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    wa_fieldcat-col_pos   = '41'.
+    wa_fieldcat-fieldname = 'FRGKE'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Release Indicator'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+**************************************************************
+
+    WA_FIELDCAT-COL_POS   = '42'.
+    WA_FIELDCAT-FIELDNAME = 'PO_TO_GR'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'PO date to GR date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '43'.
+     WA_FIELDCAT-FIELDNAME = 'PO_TO_DD'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'PO date to Delivery Date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '44'.
+     WA_FIELDCAT-FIELDNAME = 'DEL_TO_GR'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'Delivery date to GRN Date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '45'.
+     WA_FIELDCAT-FIELDNAME = 'PR_APP_PO'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'PR approval to PO'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+ ************************************************************************
+
+
+   ELSEIF CHK_STAT IS NOT INITIAL AND CHK_ALL IS NOT INITIAL.
+
+     WA_FIELDCAT-COL_POS   = '1'.
+     WA_FIELDCAT-FIELDNAME = 'BANFN'.
+     WA_FIELDCAT-TABNAME   = 'EBAN'.
+     WA_FIELDCAT-SELTEXT_M = 'PR Number'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '2'.
+     WA_FIELDCAT-FIELDNAME = 'BNFPO'.
+     WA_FIELDCAT-TABNAME   = 'EBAN'.
+     WA_FIELDCAT-SELTEXT_M = 'PR line Item'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '2.5'.
+     WA_FIELDCAT-FIELDNAME = 'EKGRP'.
+     WA_FIELDCAT-TABNAME   = 'EBAN'.
+     WA_FIELDCAT-SELTEXT_M = 'PR Purcahsing Group'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     "APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+
+     WA_FIELDCAT-COL_POS   = '3'.
+     WA_FIELDCAT-FIELDNAME = 'ERNAM'.
+     WA_FIELDCAT-TABNAME   = 'EBAN'.
+     WA_FIELDCAT-SELTEXT_M = 'PR Creator'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '3.5'.
+     WA_FIELDCAT-FIELDNAME = 'BADAT'.
+     WA_FIELDCAT-TABNAME   = 'EBAN'.
+     WA_FIELDCAT-SELTEXT_M = 'PR Date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '4'.
+     WA_FIELDCAT-FIELDNAME = 'ZPRAPDA'.
+     WA_FIELDCAT-TABNAME   = 'EBAN'.
+     WA_FIELDCAT-SELTEXT_M = 'PR Approval Date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '5'.
+     WA_FIELDCAT-FIELDNAME = 'EBELN'.
+     WA_FIELDCAT-TABNAME   = 'EKKO'.
+     WA_FIELDCAT-SELTEXT_M = 'PO Number'.
+     WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '6'.
+     WA_FIELDCAT-FIELDNAME = 'EBELP'.
+     WA_FIELDCAT-TABNAME   = 'EKPO'.
+     WA_FIELDCAT-SELTEXT_M = 'PO Line Item'.
+     WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '6'.
+     WA_FIELDCAT-FIELDNAME = 'LIFNR'.
+     WA_FIELDCAT-TABNAME   = 'EKKO'.
+     WA_FIELDCAT-SELTEXT_M = 'Vendor Code'.
+     WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '6'.
+     WA_FIELDCAT-FIELDNAME = 'NAME1'.
+     WA_FIELDCAT-TABNAME   = 'lfa1'.
+     WA_FIELDCAT-SELTEXT_M = 'Vendor Name'.
+     WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '8'.
+     WA_FIELDCAT-FIELDNAME = 'ERNAM1'.
+     WA_FIELDCAT-TABNAME   = 'EKKO'.
+     WA_FIELDCAT-SELTEXT_M = 'PO Creator'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '7'.
+     WA_FIELDCAT-FIELDNAME = 'AEDAT'.
+     WA_FIELDCAT-TABNAME   = 'EKKO'.
+     WA_FIELDCAT-SELTEXT_M = 'PO Date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '7'.
+     WA_FIELDCAT-FIELDNAME = 'EINDT'.
+     WA_FIELDCAT-TABNAME   = 'EKET'.
+     WA_FIELDCAT-SELTEXT_M = 'PO Delivery date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '9'.
+     WA_FIELDCAT-FIELDNAME = 'TXZ01'.
+     WA_FIELDCAT-TABNAME   = 'EKPO'.
+     WA_FIELDCAT-SELTEXT_M = 'PO Short Text'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '9'.
+     WA_FIELDCAT-FIELDNAME = 'WERKS'.
+     WA_FIELDCAT-TABNAME   = 'EKPO'.
+     WA_FIELDCAT-SELTEXT_M = 'Plant'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '10'.
+    wa_fieldcat-fieldname = 'ZBELNR'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+     WA_FIELDCAT-COL_POS   = '11'.
+     WA_FIELDCAT-FIELDNAME = 'ZBUDAT'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'GR date'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+APPEND WA_FIELDCAT TO IT_FIELDCAT.
+CLEAR WA_FIELDCAT.
+
+
+    wa_fieldcat-col_pos   = '12'.
+    wa_fieldcat-fieldname = 'ZERNAM'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR User'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+
+    wa_fieldcat-col_pos   = '13'.
+    wa_fieldcat-fieldname = 'BELNR'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+
+    wa_fieldcat-col_pos   = '13'.
+    wa_fieldcat-fieldname = 'ZUONR'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice Rec. Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+CLEAR WA_FIELDCAT.
+
+WA_FIELDCAT-COL_POS   = '14'.
+WA_FIELDCAT-FIELDNAME = 'ZBUDAT1'.
+WA_FIELDCAT-TABNAME   = 'ITAB'.
+WA_FIELDCAT-SELTEXT_M = 'Parking Date'.
+"  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '14'.
+    wa_fieldcat-fieldname = 'BLDAT'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+WA_FIELDCAT-COL_POS   = '14'.
+WA_FIELDCAT-FIELDNAME = 'BUDAT'.
+WA_FIELDCAT-TABNAME   = 'ITAB'.
+WA_FIELDCAT-SELTEXT_M = 'Invoice Posting Date'.
+"  WA_FIELDCAT-KEY       = 'X'.
+APPEND WA_FIELDCAT TO IT_FIELDCAT.
+CLEAR WA_FIELDCAT.
+
+    wa_fieldcat-col_pos   = '15'.
+    wa_fieldcat-fieldname = 'AUGBL'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR Clearing Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '15'.
+    wa_fieldcat-fieldname = 'ZBUDAT2'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR Clearing Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '16'.
+    wa_fieldcat-fieldname = 'ZPRPO'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'PR Approval to PO'.
+    "  WA_FIELDCAT-KEY      = 'X'.
+    wa_fieldcat-no_zero   = ' '.
+APPEND WA_FIELDCAT TO IT_FIELDCAT.
+CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '17'.
+    WA_FIELDCAT-FIELDNAME = 'ZPOGR'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Del. to GR Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '18'.
+    WA_FIELDCAT-FIELDNAME = 'ZINVPKPG'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Inv.Parking/Posting'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    wa_fieldcat-col_pos   = '19'.
+    wa_fieldcat-fieldname = 'ZPOINV'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'PO to Invoice'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '20'.
+    wa_fieldcat-fieldname = 'ZGRINV'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR to Invoice'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '21'.
+    wa_fieldcat-fieldname = 'ZPRPAY'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'PR to Payment'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '22'.
+    wa_fieldcat-fieldname = 'ZPOPAY'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'PO to Payment'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '23'.
+    wa_fieldcat-fieldname = 'ZGRPAY'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR to Payment'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '24'.
+    wa_fieldcat-fieldname = 'ZINVPAY'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice to Payment'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '25'.
+    wa_fieldcat-fieldname = 'CLR_DOC'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Payment Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '26'.
+    wa_fieldcat-fieldname = 'CLR_DATE'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Payment Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '27'.
+    wa_fieldcat-fieldname = 'INV_AMNT'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice Amount'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '28'.
+    wa_fieldcat-fieldname = 'CHARG'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Batch'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '29'.
+    wa_fieldcat-fieldname = 'GR_AMNT'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR Amount'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '30'.
+    wa_fieldcat-fieldname = 'QC_SAT'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'QC Status'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '31'.
+    wa_fieldcat-fieldname = 'ZBLK'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Block'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+    WA_FIELDCAT-COL_POS   = '32'.
+    WA_FIELDCAT-FIELDNAME = 'VDATUM'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Quality Releasing Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    wa_fieldcat-col_pos   = '41'.
+    wa_fieldcat-fieldname = 'FRGKE'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Release Indicator'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+************************************************************************
+    WA_FIELDCAT-COL_POS   = '42'.
+    WA_FIELDCAT-FIELDNAME = 'PO_TO_GR'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'PO date to GR date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '43'.
+    WA_FIELDCAT-FIELDNAME = 'PO_TO_DD'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'PO date to Delivery Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '44'.
+    WA_FIELDCAT-FIELDNAME = 'DEL_TO_GR'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Delivery date to GRN Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+  WA_FIELDCAT-COL_POS   = '45'.
+  WA_FIELDCAT-FIELDNAME = 'PR_APP_PO'.
+  WA_FIELDCAT-TABNAME   = 'ITAB'.
+  WA_FIELDCAT-SELTEXT_M = 'PR approval to PO'.
+  "  WA_FIELDCAT-KEY       = 'X'.
+  APPEND WA_FIELDCAT TO IT_FIELDCAT.
+  CLEAR WA_FIELDCAT.
+
+**********************************************************************
+
+ELSE.
+
+  WA_FIELDCAT-COL_POS   = '1'.
+  WA_FIELDCAT-FIELDNAME = 'BANFN'.
+  WA_FIELDCAT-TABNAME   = 'EBAN'.
+  WA_FIELDCAT-SELTEXT_M = 'PR Number'.
+  "  WA_FIELDCAT-KEY       = 'X'.
+  APPEND WA_FIELDCAT TO IT_FIELDCAT.
+  CLEAR WA_FIELDCAT.
+
+  WA_FIELDCAT-COL_POS   = '2'.
+  WA_FIELDCAT-FIELDNAME = 'BNFPO'.
+  WA_FIELDCAT-TABNAME   = 'EBAN'.
+  WA_FIELDCAT-SELTEXT_M = 'PR line Item'.
+  "  WA_FIELDCAT-KEY       = 'X'.
+  APPEND WA_FIELDCAT TO IT_FIELDCAT.
+  CLEAR WA_FIELDCAT.
+WA_FIELDCAT-COL_POS   = '2.5'.
+WA_FIELDCAT-FIELDNAME = 'EKGRP'.
+WA_FIELDCAT-TABNAME   = 'EBAN'.
+WA_FIELDCAT-SELTEXT_M = 'PR Purcahsing Group'.
+"  WA_FIELDCAT-KEY       = 'X'.
+APPEND WA_FIELDCAT TO IT_FIELDCAT.
+CLEAR WA_FIELDCAT.
+
+WA_FIELDCAT-COL_POS   = '3'.
+WA_FIELDCAT-FIELDNAME = 'ERNAM'.
+WA_FIELDCAT-TABNAME   = 'EBAN'.
+WA_FIELDCAT-SELTEXT_M = 'PR Creator'.
+"  WA_FIELDCAT-KEY       = 'X'.
+APPEND WA_FIELDCAT TO IT_FIELDCAT.
+CLEAR WA_FIELDCAT.
+
+WA_FIELDCAT-COL_POS   = '3.5'.
+WA_FIELDCAT-FIELDNAME = 'BADAT'.
+WA_FIELDCAT-TABNAME   = 'EBAN'.
+WA_FIELDCAT-SELTEXT_M = 'PR Date'.
+"  WA_FIELDCAT-KEY       = 'X'.
+APPEND WA_FIELDCAT TO IT_FIELDCAT.
+CLEAR WA_FIELDCAT.
+
+WA_FIELDCAT-COL_POS   = '4'.
+    WA_FIELDCAT-FIELDNAME = 'ZPRAPDA'.
+    WA_FIELDCAT-TABNAME   = 'EBAN'.
+    WA_FIELDCAT-SELTEXT_M = 'PR Approval Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '5'.
+    WA_FIELDCAT-FIELDNAME = 'EBELN'.
+    WA_FIELDCAT-TABNAME   = 'EKKO'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Number'.
+    WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '6'.
+    WA_FIELDCAT-FIELDNAME = 'EBELP'.
+    WA_FIELDCAT-TABNAME   = 'EKPO'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Line Item'.
+    WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '6'.
+    WA_FIELDCAT-FIELDNAME = 'LIFNR'.
+    WA_FIELDCAT-TABNAME   = 'EKKO'.
+    WA_FIELDCAT-SELTEXT_M = 'Vendor Code'.
+    WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '6'.
+    WA_FIELDCAT-FIELDNAME = 'NAME1'.
+    WA_FIELDCAT-TABNAME   = 'lfa1'.
+    WA_FIELDCAT-SELTEXT_M = 'Vendor Name'.
+    WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '8'.
+    WA_FIELDCAT-FIELDNAME = 'ERNAM1'.
+    WA_FIELDCAT-TABNAME   = 'EKKO'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Creator'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '7'.
+    WA_FIELDCAT-FIELDNAME = 'AEDAT'.
+    WA_FIELDCAT-TABNAME   = 'EKKO'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '7'.
+    WA_FIELDCAT-FIELDNAME = 'EINDT'.
+    WA_FIELDCAT-TABNAME   = 'EKET'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Delivery date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '9'.
+    WA_FIELDCAT-FIELDNAME = 'TXZ01'.
+    WA_FIELDCAT-TABNAME   = 'EKPO'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Short Text'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '9'.
+    WA_FIELDCAT-FIELDNAME = 'WERKS'.
+    WA_FIELDCAT-TABNAME   = 'EKPO'.
+    WA_FIELDCAT-SELTEXT_M = 'Plant'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR wa_fieldcat.
+
+    wa_fieldcat-col_pos   = '10'.
+    wa_fieldcat-fieldname = 'ZBELNR'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+    WA_FIELDCAT-COL_POS   = '11'.
+    WA_FIELDCAT-FIELDNAME = 'ZBUDAT'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'GR date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+
+    wa_fieldcat-col_pos   = '12'.
+    wa_fieldcat-fieldname = 'ZERNAM'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'GR User'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR wa_fieldcat.
+
+
+    wa_fieldcat-col_pos   = '13'.
+    wa_fieldcat-fieldname = 'BELNR'.
+    wa_fieldcat-tabname   = 'ITAB'.
+    wa_fieldcat-seltext_m = 'Invoice Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND wa_fieldcat TO it_fieldcat.
+    CLEAR WA_FIELDCAT.
+
+
+    WA_FIELDCAT-COL_POS   = '13'.
+    WA_FIELDCAT-FIELDNAME = 'ZUONR'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Invoice Rec. Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '14'.
+    WA_FIELDCAT-FIELDNAME = 'ZBUDAT1'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Parking Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '14'.
+    WA_FIELDCAT-FIELDNAME = 'BLDAT'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Invoice Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '14'.
+    WA_FIELDCAT-FIELDNAME = 'BUDAT'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Invoice Posting Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '15'.
+    WA_FIELDCAT-FIELDNAME = 'AUGBL'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'GR Clearing Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '15'.
+    WA_FIELDCAT-FIELDNAME = 'ZBUDAT2'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'GR Clearing Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '16'.
+    WA_FIELDCAT-FIELDNAME = 'ZPRPO'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'PR Approval to PO'.
+    "  WA_FIELDCAT-KEY      = 'X'.
+    wa_fieldcat-no_zero   = ' '.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '17'.
+    WA_FIELDCAT-FIELDNAME = 'ZPOGR'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'PO Del. to GR Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '18'.
+    WA_FIELDCAT-FIELDNAME = 'ZINVPKPG'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Inv.Parking/Posting'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '19'.
+    WA_FIELDCAT-FIELDNAME = 'ZPOINV'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'PO to Invoice'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '20'.
+     WA_FIELDCAT-FIELDNAME = 'ZGRINV'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'GR to Invoice'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '21'.
+     WA_FIELDCAT-FIELDNAME = 'ZPRPAY'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'PR to Payment'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '22'.
+     WA_FIELDCAT-FIELDNAME = 'ZPOPAY'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'PO to Payment'.
+     "  WA_FIELDCAT-KEY       = 'X'.
+     APPEND WA_FIELDCAT TO IT_FIELDCAT.
+     CLEAR WA_FIELDCAT.
+
+     WA_FIELDCAT-COL_POS   = '23'.
+     WA_FIELDCAT-FIELDNAME = 'ZGRPAY'.
+     WA_FIELDCAT-TABNAME   = 'ITAB'.
+     WA_FIELDCAT-SELTEXT_M = 'GR to Payment'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '24'.
+    WA_FIELDCAT-FIELDNAME = 'ZINVPAY'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Invoice to Payment'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '25'.
+    WA_FIELDCAT-FIELDNAME = 'CLR_DOC'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Payment Document'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '26'.
+    WA_FIELDCAT-FIELDNAME = 'CLR_DATE'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Payment Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '27'.
+    WA_FIELDCAT-FIELDNAME = 'INV_AMNT'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Invoice Amount'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '28'.
+    WA_FIELDCAT-FIELDNAME = 'CHARG'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Batch'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '29'.
+    WA_FIELDCAT-FIELDNAME = 'GR_AMNT'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'GR Amount'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '30'.
+    WA_FIELDCAT-FIELDNAME = 'VDATUM'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Quality Releasing Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '41'.
+    WA_FIELDCAT-FIELDNAME = 'FRGKE'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Release Indicator'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+ CLEAR WA_FIELDCAT.
+
+ WA_FIELDCAT-COL_POS   = '42'.
+    WA_FIELDCAT-FIELDNAME = 'PO_TO_GR'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'PO date to GR date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '43'.
+    WA_FIELDCAT-FIELDNAME = 'PO_TO_DD'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'PO date to Delivery Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '44'.
+    WA_FIELDCAT-FIELDNAME = 'DEL_TO_GR'.
+    WA_FIELDCAT-TABNAME   = 'ITAB'.
+    WA_FIELDCAT-SELTEXT_M = 'Delivery date to GRN Date'.
+    "  WA_FIELDCAT-KEY       = 'X'.
+    APPEND WA_FIELDCAT TO IT_FIELDCAT.
+    CLEAR WA_FIELDCAT.
+
+    WA_FIELDCAT-COL_POS   = '45'.
+   WA_FIELDCAT-FIELDNAME = 'PR_APP_PO'.
+   WA_FIELDCAT-TABNAME   = 'ITAB'.
+   WA_FIELDCAT-SELTEXT_M = 'PR approval to PO'.
+   "  WA_FIELDCAT-KEY       = 'X'.
+   APPEND WA_FIELDCAT TO IT_FIELDCAT.
+   CLEAR WA_FIELDCAT.
+
+***********************************************************************
+ ENDIF.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      I_CALLBACK_PROGRAM     = SY-REPID
+      i_callback_top_of_page = 'TOP_OF_PAGE'
+      is_layout              = gs_layout
+      it_fieldcat            = it_fieldcat
+      it_sort                = it_sort
+      I_DEFAULT              = 'X'
+      I_SAVE                 = 'A'
+      IS_VARIANT             = GS_VARIANT
+
+    TABLES
+      T_OUTTAB               = ITAB .
+  IF SY-SUBRC <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+**================
+FORM top_of_page.
+
+  DATA: it_header     TYPE slis_t_listheader,
+        wa_header     TYPE slis_listheader,
+        lv_line       LIKE wa_header-info,
+        ld_lines      TYPE i,
+        ld_linesc(10) TYPE c.
+
+
+
+  IF chk_all IS NOT INITIAL AND chk_stat IS INITIAL.
+
+***----------------------------------------------------***
+    REFRESH it_header[].
+
+    wa_header-typ  = 'H'.
+    wa_header-info = 'NATIONAL FOODS LTD.'.
+    APPEND wa_header TO it_header.
+    CLEAR wa_header.
+
+    lv_line = 'P2P Report – All POs'.
+    wa_header-typ  = 'A'.
+    wa_header-info = lv_line.
+    APPEND wa_header TO it_header.
+    CLEAR: wa_header, lv_line.
+
+    CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+      EXPORTING
+        it_list_commentary = it_header.
+    .
+    CLEAR it_header.
+***----------------------------------------------------***
+
+  ELSEIF chk_stat IS NOT INITIAL AND chk_all IS INITIAL.
+
+***----------------------------------------------------***
+    REFRESH it_header[].
+
+    wa_header-typ  = 'H'.
+    wa_header-info = 'NATIONAL FOODS LTD.'.
+    APPEND wa_header TO it_header.
+    CLEAR wa_header.
+
+    lv_line = 'P2P Report with Stock Status'.
+    wa_header-typ  = 'A'.
+    wa_header-info = lv_line.
+    APPEND wa_header TO it_header.
+    CLEAR: wa_header, lv_line.
+
+    CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+      EXPORTING
+        it_list_commentary = it_header.
+    .
+    CLEAR it_header.
+***----------------------------------------------------***
+
+
+  ELSEIF chk_all IS NOT INITIAL AND chk_stat IS NOT INITIAL.
+
+***----------------------------------------------------***
+    REFRESH it_header[].
+
+    wa_header-typ  = 'H'.
+    wa_header-info = 'NATIONAL FOODS LTD.'.
+    APPEND wa_header TO it_header.
+    CLEAR wa_header.
+
+    lv_line = 'P2P Report – All POs with Stock Status'.
+    wa_header-typ  = 'A'.
+    wa_header-info = lv_line.
+    APPEND wa_header TO it_header.
+    CLEAR: wa_header, lv_line.
+
+    CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+      EXPORTING
+        it_list_commentary = it_header.
+    .
+    CLEAR it_header.
+***----------------------------------------------------***
+
+  ELSE.
+
+***----------------------------------------------------***
+    REFRESH it_header[].
+
+    wa_header-typ  = 'H'.
+    wa_header-info = 'NATIONAL FOODS LTD.'.
+    APPEND wa_header TO it_header.
+    CLEAR wa_header.
+
+    lv_line = 'P2P Report – With Released POs'.
+    wa_header-typ  = 'A'.
+    wa_header-info = lv_line.
+    APPEND wa_header TO it_header.
+    CLEAR: wa_header, lv_line.
+
+    CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+      EXPORTING
+        it_list_commentary = it_header.
+    .
+    CLEAR it_header.
+***                                                    ***
+
+  ENDIF.
+ENDFORM.

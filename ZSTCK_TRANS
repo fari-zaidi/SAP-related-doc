@@ -1,0 +1,40 @@
+*&---------------------------------------------------------------------*
+*& Report ZSA_MM_STCK_TRNS_UPD
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+*======================================================================*
+*                                                                      *
+*            *==========================================*              *
+*            *        TMC Consulting                    *              *
+*            *        CONFIDENTIAL & PROPRIETARY        *              *
+*            *        ALL RIGHTS RESERVED               *              *
+*            *==========================================*              *
+*                                                                      *
+*======================================================================*
+* PROGRAM NAME :  ZSA_MM_STCK_TRNS_UPD                                 *
+* DESCRIPTION  : 	Stock Transfer Posting Upload                        *
+* TRANSACTION CODE:  	                                      *
+* ABAP Consultant: 	Saud Aqeel                                         *
+* DATE :    12 Jan-2022``                                              *
+* REQUEST : S4DK900852                                                 *
+*                                                                      *
+*======================================================================*
+* CHANGE LOG:                                                          *
+* CHG DATE       AUTHOR    REQUEST #   DESCRIPTION                     *
+*======================================================================*
+*&---------------------------------------------------------------------*
+*& This program demonstrates how to transfer stock from one place
+*& to another on a large amount
+*& The program also generates a report post-execution displaying errors
+*& as well as successful uploads
+*&---------------------------------------------------------------------*
+REPORT ZSA_MM_STCK_TRNS_UPD.
+
+INCLUDE : ZSA_MM_STCK_TRNS_UPD_T01,
+          ZSA_MM_STCK_TRNS_UPD_S01,
+          ZSA_MM_STCK_TRNS_UPD_F01.
+
+START-OF-SELECTION.
+
+  PERFORM BUILD_LOGIC.
