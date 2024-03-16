@@ -1,0 +1,1799 @@
+  METHOD IF_EX_MB_DOCUMENT_BADI~MB_DOCUMENT_BEFORE_UPDATE.
+
+    "
+
+*// DATA DECLARATION
+    DATA: WA_MKPF      LIKE LINE OF XMKPF,
+          WA_MSEG      TYPE MSEG,
+          ZEKKO        TYPE EKKO,
+          ZEKET        TYPE EKET,
+          ZEKGRP       TYPE EKGRP,
+          ZBUDAT       TYPE BUDAT,
+          ZEINDT       TYPE EINDT,
+          ZZEINDT      TYPE EINDT,
+          ZMENGE       TYPE STRING,
+          ZMENGE_TOTAL TYPE MENGE,
+          ZMATNR1      TYPE MATNR,
+          ZTXZ01       TYPE TXZ01,
+          ZLIFNR       TYPE LIFNR,
+          ZNAME        TYPE NAME1,
+          ZEKPO_MENGE  TYPE STRING.
+
+
+    TYPES: BEGIN OF TY_TAB,
+             MATNR  TYPE MATNR,
+             ZMENGE TYPE MSEG-MENGE,
+             ZMEINS TYPE MSEG-MEINS,
+             WERKS  TYPE MSEG-WERKS,
+             MTART  TYPE MTART,
+             MAKTX  TYPE MAKT-MAKTX,
+             WGBEZ  TYPE T023T-WGBEZ,
+             BWART  TYPE MSEG-BWART,
+           END OF TY_TAB.
+
+    DATA: IT_TAB  TYPE STANDARD TABLE OF TY_TAB,
+          IT_TAB1 TYPE STANDARD TABLE OF TY_TAB,
+          WA_TAB1 TYPE TY_TAB,
+          WA_TAB  TYPE TY_TAB.
+
+
+***==============================================STOCK ALERT NAUSHAD SB
+
+    DATA: ZMATNR  TYPE MATNR,
+          ZMTART  TYPE MTART,
+          ZMATKL  TYPE MATKL,
+          ZWGBEZ  TYPE WGBEZ,
+          ZWERKS  TYPE WERKS,
+          ZTOTAL  TYPE LABST,
+          ZTOTAL1 TYPE STRING,
+          ZMAKTX  TYPE MAKTX,
+          ZEISBE  TYPE EISBE,
+          ZEISBE1 TYPE STRING.
+    DATA: ZADRNR  TYPE LFA1-ADRNR.
+***======================================================================
+
+    TYPES: BEGIN OF TY_EMAIL,
+             EMAIL TYPE STRING,
+           END OF TY_EMAIL.
+
+    DATA: IT_EMAIL    TYPE TABLE OF TY_EMAIL,
+          IT_EMAIL_CC TYPE TABLE OF TY_EMAIL,
+          WA_EMAIL    LIKE LINE OF IT_EMAIL,
+          WA_EMAIL_CC LIKE LINE OF IT_EMAIL.
+
+
+    DATA: LINE_BR TYPE C VALUE  CL_ABAP_CHAR_UTILITIES=>CR_LF.
+
+    DATA:
+      GV_MLREC         TYPE SO_OBJ_NAM,
+      GV_SENT_TO_ALL   TYPE OS_BOOLEAN,
+      GV_EMAIL         TYPE ADR6-SMTP_ADDR,
+      GV_SUBJECT       TYPE SO_OBJ_DES,
+      GV_TEXT          TYPE          BCSY_TEXT,
+
+      GR_SEND_REQUEST  TYPE REF TO CL_BCS,
+      GR_BCS_EXCEPTION TYPE REF TO CX_BCS,
+      GR_RECIPIENT     TYPE REF TO IF_RECIPIENT_BCS,
+      GR_SENDER        TYPE REF TO CL_SAPUSER_BCS,
+      GR_DOCUMENT      TYPE REF TO CL_DOCUMENT_BCS.
+
+
+    DATA:
+      GV_TEXT1 TYPE STRING,
+      GV_TEXT9 TYPE STRING,
+      GV_TEXT2 TYPE STRING.
+
+    CONSTANTS:
+      GC_SUBJECT TYPE SO_OBJ_DES VALUE 'GR Status Email!',
+      GC_RAW     TYPE CHAR03 VALUE 'RAW'.
+
+    CONSTANTS:
+      GC_SUBJECT1 TYPE SO_OBJ_DES VALUE 'Low Inventory Alert!',
+      GC_RAW1     TYPE CHAR03 VALUE 'RAW'.
+
+*// Read Table Data
+
+*BREAK-point.
+
+
+
+    IF XMKPF IS NOT INITIAL.
+
+      READ TABLE XMKPF INTO WA_MKPF INDEX 1.
+
+      ZBUDAT = WA_MKPF-BUDAT.
+
+*      Loop at XMSEG INTO WA_MSEG.
+
+*      READ TABLE XMSEG INTO WA_MSEG INDEX 1.
+
+***==============================================Implementation of LE PO UPDATE.
+*      BREAK-POINT.
+
+***      LOOP AT XMSEG INTO WA_MSEG.
+***
+***        IF WA_MKPF-TCODE2 EQ 'ML81'.
+***
+***
+***          IF WA_MSEG-KZBEW = 'B' AND  WA_MSEG-BWART = '101'  AND WA_MSEG-KZZUG = ' '.
+***
+***            DATA:
+***
+***              ZSTATU1 TYPE EKKO-STATU,
+***              ZBSART1 TYPE EKKO-BSART,
+***              ZEKGRP1 TYPE EKKO-EKGRP,
+***              ZBWART  TYPE EKBE-BWART,
+***              ZDMBTR1 TYPE EKBE-DMBTR,
+***              ZDMBTR2 TYPE EKBE-DMBTR,
+***              ZDMBTRF TYPE EKBE-DMBTR,
+***              ZNETWR  TYPE EKPO-NETWR.
+***
+***            TYPES: BEGIN OF TY_ITLE,
+***
+***                     EBELN    TYPE EKBE-EBELN,
+***                     EBELP    TYPE EKBE-EBELP,
+***                     ZDMBTRPO TYPE EKBE-DMBTR,
+***
+***                   END OF TY_ITLE.
+***
+***            DATA: ITLE1    TYPE STANDARD TABLE OF TY_ITLE,
+***                  ITLE     TYPE STANDARD TABLE OF TY_ITLE, "WITH HEADER LINE.
+***                  WA_ITLE1 TYPE TY_ITLE,
+***                  WA_ITLE  TYPE TY_ITLE.
+***
+***
+***            SELECT SINGLE STATU BSART EKGRP FROM EKKO INTO ( ZSTATU1, ZBSART1, ZEKGRP1 ) WHERE EBELN = WA_MSEG-EBELN.
+****SELECT SINGLE BSART FROM EKKO INTO ZBSART1 WHERE EBELN = WA_MSEG-EBELN.
+****SELECT SINGLE EKGRP FROM EKKO INTO ZEKGRP1 WHERE EBELN = WA_MSEG-EBELN.
+***
+***            IF ( ZSTATU1 = 'X' AND ZBSART1 = 'NB' AND ZEKGRP1 = 'TRN' ) .
+***
+***
+***              WA_ITLE-EBELN = WA_MSEG-EBELN.
+***              WA_ITLE-EBELP = WA_MSEG-EBELP.
+***              WA_ITLE-ZDMBTRPO = WA_MSEG-DMBTR.
+***
+***              APPEND WA_ITLE TO ITLE1.
+***
+***
+****SELECT SUM( DMBTR ) FROM EKBE INTO ZDMBTR1 WHERE ( EBELN = WA_MSEG-EBELN AND EBELP = WA_MSEG-EBELP AND BWART = '101' ).
+****SELECT SUM( DMBTR ) FROM EKBE INTO ZDMBTR2 WHERE ( EBELN = WA_MSEG-EBELN AND EBELP = WA_MSEG-EBELP AND BWART = '102' ).
+****SELECT SINGLE NETWR FROM EKPO INTO ZNETWR WHERE ( EBELN = WA_MSEG-EBELN AND EBELP = WA_MSEG-EBELP ) .
+***
+***
+****CASE WA_MSEG-BWART.
+****  WHEN '101'.
+****
+****ZDMBTRF = ( ZDMBTR1 + WA_MSEG-DMBTR - ZDMBTR2 ).
+****
+****  WHEN '102'.
+****
+****ZDMBTRF = ( ZDMBTR1 - WA_MSEG-DMBTR - ZDMBTR2 ).
+****
+****  ENDCASE.
+***
+****IF ZNETWR < ZDMBTRF.
+***
+**** ZNETWR = ZDMBTRF - ZNETWR.
+***
+***
+***
+****UPDATE EKPO SET NETPR = ZDMBTRF
+****
+****WHERE EBELN = WA_MSEG-EBELN
+****AND   EBELP = WA_MSEG-EBELP.
+***
+***
+****ENDIF.
+***
+***            ENDIF.
+***
+***          ENDIF.
+***
+***        ENDIF.
+***      ENDLOOP.
+***
+***      CLEAR WA_ITLE.
+***
+***      LOOP AT ITLE1 INTO WA_ITLE.
+***
+***        COLLECT WA_ITLE INTO ITLE.
+***
+***      ENDLOOP.
+
+***      CLEAR WA_ITLE.
+***
+***
+***      IF ITLE[] IS NOT INITIAL.
+***
+***        LOOP AT ITLE INTO WA_ITLE.
+***
+***
+***          SELECT SUM( DMBTR ) FROM EKBE INTO ZDMBTR1 WHERE ( EBELN = WA_ITLE-EBELN AND EBELP = WA_ITLE-EBELP AND BWART = '101' ).
+***          SELECT SUM( DMBTR ) FROM EKBE INTO ZDMBTR2 WHERE ( EBELN = WA_ITLE-EBELN AND EBELP = WA_ITLE-EBELP AND BWART = '102' ).
+***
+***
+***          ZDMBTRF = ( ZDMBTR1 + WA_ITLE-ZDMBTRPO - ZDMBTR2 ).
+***
+***          UPDATE EKPO SET NETWR = ZDMBTRF "NETPR = ZDMBTRF
+***
+***          WHERE EBELN = WA_ITLE-EBELN
+***          AND   EBELP = WA_ITLE-EBELP.
+***
+***        ENDLOOP.
+***
+***
+***      ENDIF.
+*******************************************************=======================================
+
+
+***
+
+***********=======================================================Implementation of Low Level of Inventory
+
+      LOOP AT XMSEG INTO WA_MSEG.
+
+        IF WA_MSEG-MATNR IS NOT INITIAL AND WA_MSEG-SHKZG EQ 'H'.
+          SELECT SINGLE MTART MATKL FROM MARA INTO ( ZMTART, ZMATKL ) WHERE MATNR = WA_MSEG-MATNR.
+          SELECT SINGLE MAKTX FROM MAKT INTO ZMAKTX WHERE MATNR = WA_MSEG-MATNR.
+          SELECT SINGLE WGBEZ FROM T023T INTO ZWGBEZ WHERE MATKL = ZMATKL.
+
+          IF ( ZMTART EQ 'ROH' OR ZMTART EQ 'VERP' ).
+
+            CASE WA_MSEG-BWART. " First case
+              WHEN  '122' OR '161' OR '201' OR '261' OR '301' OR '303' OR '351' OR '551' OR '553'.
+
+
+                WA_TAB-MATNR = WA_MSEG-MATNR.
+                WA_TAB-ZMENGE = WA_MSEG-MENGE.
+                WA_TAB-ZMEINS  = WA_MSEG-MEINS.
+                WA_TAB-WERKS =  WA_MSEG-WERKS.
+                WA_TAB-BWART = WA_MSEG-BWART.
+                WA_TAB-MTART = ZMTART.
+                WA_TAB-MAKTX = ZMAKTX.
+                WA_TAB-WGBEZ = ZWGBEZ.
+
+                APPEND WA_TAB TO IT_TAB.
+
+            ENDCASE.
+          ENDIF.
+        ENDIF.
+
+*      ZTOTAL = ZTOTAL - WA_MSEG-MENGE.
+*
+*      IF ZTOTAL LE ZEISBE.
+*
+*        ZTOTAL1 = ZTOTAL.
+*        ZEISBE1 = ZEISBE.
+
+*      CASE ZMTART. " Second Case
+*
+*        WHEN 'VERP' .
+*          MOVE 'danial.kodvavi@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*          APPEND WA_EMAIL TO IT_EMAIL.
+*
+*          MOVE 'waqar.khan@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*          APPEND WA_EMAIL TO IT_EMAIL.
+*
+*          MOVE 'naushad.ansari@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*          APPEND WA_EMAIL TO IT_EMAIL.
+*
+*        WHEN 'ROH'.
+*
+*           MOVE 'alfred.sadiq@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*           APPEND WA_EMAIL TO IT_EMAIL.
+*
+*           MOVE 'mussarrat.hussain@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*           APPEND WA_EMAIL TO IT_EMAIL.
+*
+*           MOVE 'naushad.ansari@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*           APPEND WA_EMAIL TO IT_EMAIL.
+*
+*      ENDCASE." second Case
+*              LOOP AT IT_EMAIL INTO WA_EMAIL.
+*                TRY.
+*                    "Create send request
+*                    GR_SEND_REQUEST = CL_BCS=>CREATE_PERSISTENT( ).
+*                    "Email FROM...
+*                    GR_SENDER = CL_SAPUSER_BCS=>CREATE( SY-UNAME ).
+*                    "Add sender to send request
+*
+*                    CALL METHOD GR_SEND_REQUEST->SET_SENDER
+*                      EXPORTING
+*                        I_SENDER = GR_SENDER.
+*                    GV_EMAIL = WA_EMAIL-EMAIL.
+*                    GR_RECIPIENT = CL_CAM_ADDRESS_BCS=>CREATE_INTERNET_ADDRESS( GV_EMAIL ).
+*
+*                    "Add recipient to send request
+*                    CALL METHOD GR_SEND_REQUEST->ADD_RECIPIENT
+*                      EXPORTING
+*                        I_RECIPIENT = GR_RECIPIENT
+*                        I_EXPRESS   = 'X'.
+*
+*
+*                    "Email Body
+*
+*                    SHIFT WA_MSEG-MATNR left deleting leading '0'.
+*                    CONCATENATE 'Dear' 'User,' INTO GV_TEXT9 SEPARATED BY ' '.
+*
+*                    APPEND GV_TEXT1 TO GV_TEXT.
+*                    APPEND GV_TEXT9 TO GV_TEXT.
+*
+*                    CLEAR GV_TEXT2.
+*                    APPEND GV_TEXT2 TO GV_TEXT.
+*
+*                    APPEND 'A Consumption has been posted for below mentioned material of which Inventory Level is Low.' TO GV_TEXT . "separated by ' '.
+*                    CLEAR GV_TEXT2.
+*                    APPEND GV_TEXT2 TO GV_TEXT.
+*
+*                    CONCATENATE 'Material: ' WA_MSEG-MATNR INTO GV_TEXT2 SEPARATED BY ' '.
+*                    APPEND GV_TEXT2 TO GV_TEXT.
+*                    CLEAR GV_TEXT2.
+*
+*                    CONCATENATE 'Material Description: ' ZMAKTX INTO GV_TEXT2 SEPARATED BY ' '.
+*                    APPEND GV_TEXT2 TO GV_TEXT.
+*                    CLEAR GV_TEXT2.
+*
+*                    CONCATENATE 'Plant: ' WA_MSEG-WERKS INTO GV_TEXT2 SEPARATED BY ' '.
+*                    APPEND GV_TEXT2 TO GV_TEXT.
+*                    CLEAR GV_TEXT2.
+*
+*                    CONCATENATE 'Available Stock: ' ZTOTAL1 WA_MSEG-MEINS INTO GV_TEXT2 SEPARATED BY ' '.
+*                    APPEND GV_TEXT2 TO GV_TEXT.
+*                    CLEAR GV_TEXT2.
+*
+*                    CONCATENATE 'Safety Stock: ' ZEISBE1 WA_MSEG-MEINS INTO GV_TEXT2 SEPARATED BY ' '.
+*                    APPEND GV_TEXT2 TO GV_TEXT.
+*                    CLEAR GV_TEXT2.
+*
+*
+*                    GR_DOCUMENT = CL_DOCUMENT_BCS=>CREATE_DOCUMENT(
+*                                    I_TYPE    = GC_RAW1
+*                                    I_TEXT    = GV_TEXT[]
+*                                    I_LENGTH  = '500'
+*                                    I_SUBJECT = GC_SUBJECT1 ).
+*                    FREE GV_TEXT1.
+*                    FREE GV_TEXT.
+*
+*                    "Add document to send request
+*                    CALL METHOD GR_SEND_REQUEST->SET_DOCUMENT( GR_DOCUMENT ).
+*                    "Send email
+*                    CALL METHOD GR_SEND_REQUEST->SEND(
+*                      EXPORTING
+*                        I_WITH_ERROR_SCREEN = 'X'
+*                      RECEIVING
+*                        RESULT              = GV_SENT_TO_ALL ).
+**      if itabmail-sta ne 'X'.
+*                    IF GV_SENT_TO_ALL = 'X'.
+**       itabmail-sta = 'X'.
+**        MODIFY itabmail TRANSPORTING sta.
+*                      WRITE: / 'Email sent!'.
+**      endif.
+*                    ENDIF.
+*
+*                    "Commit to send email
+**                    COMMIT WORK.
+*
+*                   "Exception handling
+*                  CATCH CX_BCS INTO GR_BCS_EXCEPTION.
+*                    WRITE:
+*                      / 'Error!, Email not sent'.",gr_bcs_exception->error_type.
+*
+*
+*
+*    ENDTRY.
+*
+*
+*    ENDLOOP.
+*    ENDIF.
+*    ENDCASE. "first Case
+*
+*    ENDIF.
+*    ENDIF.
+
+***********=================================================Implementation of GR Status Email=======================
+
+        IF WA_MSEG-KZBEW = 'B' AND WA_MSEG-BWART = '101'.
+
+          IF WA_MSEG-EBELN IS NOT INITIAL.
+
+            ZMENGE = WA_MSEG-MENGE.
+
+            SELECT SINGLE EKGRP FROM EKKO
+              INTO ZEKGRP WHERE EBELN = WA_MSEG-EBELN.
+
+            SELECT SINGLE LIFNR FROM EKKO
+              INTO ZLIFNR WHERE EBELN = WA_MSEG-EBELN.
+
+            SELECT SINGLE NAME1 FROM LFA1
+              INTO ZNAME WHERE LIFNR = ZLIFNR.
+
+            SELECT SINGLE TXZ01 FROM EKPO
+              INTO ZTXZ01 WHERE EBELN = WA_MSEG-EBELN
+                            AND EBELP = WA_MSEG-EBELP.
+
+*      SELECT SINGLE MENGE FROM EKPO
+*        INTO ZEKPO_MENGE WHERE EBELN = WA_MSEG-EBELN
+*                           AND EBELP = WA_MSEG-EBELP.
+
+*         IF SY-SUBRC NE 0.
+*
+*            ZEKGRP = ZEKKO-EKGRP.
+*
+*         ENDIF.
+
+            IF ZEKGRP = 'PPP' OR ZEKGRP = 'PPR'.
+
+              SELECT SINGLE EINDT FROM EKET
+                INTO ZEINDT WHERE EBELN = WA_MSEG-EBELN
+                              AND EBELP = WA_MSEG-EBELP.
+
+              IF SY-SUBRC EQ 0.
+
+                ZZEINDT = ZEINDT + 3.
+
+              ENDIF.
+
+            ELSE.
+
+              EXIT.
+
+            ENDIF.
+
+*// Execute Email
+
+            CASE ZEKGRP.
+
+              WHEN 'PPP'.
+
+                IF ZBUDAT > ZZEINDT.
+
+*           Email generate.
+
+
+*+++++++++++++-------- Users Email IDs --------------++++++++++++"
+
+*          MOVE 'mohammad.wasim@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*          APPEND WA_EMAIL TO IT_EMAIL.
+
+                  MOVE 'danial.kodvavi@nfoods.com' TO WA_EMAIL-EMAIL.
+
+                  APPEND WA_EMAIL TO IT_EMAIL.
+
+                  MOVE 'meena.noor@nfoods.com' TO WA_EMAIL-EMAIL.
+
+                  APPEND WA_EMAIL TO IT_EMAIL.
+
+                  MOVE 'waqar.khan@nfoods.com' TO WA_EMAIL-EMAIL.
+
+                  APPEND WA_EMAIL TO IT_EMAIL.
+
+                  MOVE 'naushad.ansari@nfoods.com' TO WA_EMAIL-EMAIL.
+
+                  APPEND WA_EMAIL TO IT_EMAIL.
+
+
+*              MOVE 'ahsan.anwar@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*              APPEND WA_EMAIL TO IT_EMAIL.
+*
+*              MOVE 'saleem.ahmed@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*              APPEND WA_EMAIL TO IT_EMAIL.
+
+
+
+*+++++++++++++-------- Email sending Code --------------++++++++++++"
+
+                  LOOP AT IT_EMAIL INTO WA_EMAIL.
+                    TRY.
+                        "Create send request
+                        GR_SEND_REQUEST = CL_BCS=>CREATE_PERSISTENT( ).
+                        "Email FROM...
+                        GR_SENDER = CL_SAPUSER_BCS=>CREATE( 'BGUSER' ).
+                        "Add sender to send request
+
+                        CALL METHOD GR_SEND_REQUEST->SET_SENDER
+                          EXPORTING
+                            I_SENDER = GR_SENDER.
+                        GV_EMAIL = WA_EMAIL-EMAIL.
+                        GR_RECIPIENT = CL_CAM_ADDRESS_BCS=>CREATE_INTERNET_ADDRESS( GV_EMAIL ).
+
+                        "Add recipient to send request
+                        CALL METHOD GR_SEND_REQUEST->ADD_RECIPIENT
+                          EXPORTING
+                            I_RECIPIENT = GR_RECIPIENT
+                            I_EXPRESS   = 'X'.
+
+                        "Email Body
+
+                        CONCATENATE 'Dear' 'User,' INTO GV_TEXT9 SEPARATED BY ' '.
+
+                        APPEND GV_TEXT1 TO GV_TEXT.
+                        APPEND GV_TEXT9 TO GV_TEXT.
+
+                        CLEAR GV_TEXT2.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+
+                        APPEND 'A GR has been posted for Packaging Material after the delivery date. GR details are as follows:' TO GV_TEXT . "separated by ' '.
+                        CLEAR GV_TEXT2.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+
+                        CONCATENATE 'Vendor Name: ' ZNAME INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'Vendor No: ' ZLIFNR INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'PO: ' WA_MSEG-EBELN ' Line Item: ' WA_MSEG-EBELP INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+*
+*                CONCATENATE 'PO Quantity: ' ZEKPO_MENGE INTO GV_TEXT2 SEPARATED BY ' '.
+*                APPEND GV_TEXT2 TO GV_TEXT.
+*                CLEAR GV_TEXT2.
+
+                        CONCATENATE 'Material: ' WA_MSEG-MATNR INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'Material Description: ' ZTXZ01 INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+
+                        CONCATENATE 'PO Delivery Date: ' ZEINDT INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'GR Posting Date: ' ZBUDAT INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'GR Quantity: ' ZMENGE INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        GR_DOCUMENT = CL_DOCUMENT_BCS=>CREATE_DOCUMENT(
+                                        I_TYPE    = GC_RAW
+                                        I_TEXT    = GV_TEXT[]
+                                        I_LENGTH  = '500'
+                                        I_SUBJECT = GC_SUBJECT ).
+
+                        FREE GV_TEXT1.
+                        FREE GV_TEXT.
+
+                        "Add document to send request
+                        CALL METHOD GR_SEND_REQUEST->SET_DOCUMENT( GR_DOCUMENT ).
+                        "Send email
+                        CALL METHOD GR_SEND_REQUEST->SEND(
+                          EXPORTING
+                            I_WITH_ERROR_SCREEN = 'X'
+                          RECEIVING
+                            RESULT              = GV_SENT_TO_ALL ).
+*      if itabmail-sta ne 'X'.
+                        IF GV_SENT_TO_ALL = 'X'.
+*       itabmail-sta = 'X'.
+*        MODIFY itabmail TRANSPORTING sta.
+                          WRITE: / 'Email sent!'.
+*      endif.
+                        ENDIF.
+
+                        "Commit to send email
+*                    COMMIT WORK.
+
+
+                        "Exception handling
+                      CATCH CX_BCS INTO GR_BCS_EXCEPTION.
+                        WRITE:
+                          / 'Error!, Email not sent'.",gr_bcs_exception->error_type.
+
+                    ENDTRY.
+
+
+                  ENDLOOP.
+
+                ELSE.
+                  EXIT.
+
+                ENDIF.
+
+*                        "IF_EX_MB_DOCUMENT_BADI~MB_DOCUMENT_BEFORE_UPDATE
+
+
+              WHEN 'PPR'.
+
+                IF ZBUDAT > ZZEINDT.
+
+*           Email generate.
+
+
+*+++++++++++++-------- Users Email IDs --------------++++++++++++"
+
+                  MOVE 'alfred.sadiq@nfoods.com' TO WA_EMAIL-EMAIL.
+
+                  APPEND WA_EMAIL TO IT_EMAIL.
+
+                  MOVE 'md.iqbal@nfoods.com' TO WA_EMAIL-EMAIL.
+
+                  APPEND WA_EMAIL TO IT_EMAIL.
+
+                  MOVE 'mohsin.yaqoob@nfoods.com' TO WA_EMAIL-EMAIL.
+
+                  APPEND WA_EMAIL TO IT_EMAIL.
+
+                  MOVE 'mussarrat.hussain@nfoods.com' TO WA_EMAIL-EMAIL.
+
+                  APPEND WA_EMAIL TO IT_EMAIL.
+
+                  MOVE 'naushad.ansari@nfoods.com' TO WA_EMAIL-EMAIL.
+
+                  APPEND WA_EMAIL TO IT_EMAIL.
+
+*              MOVE 'ahsan.anwar@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*              APPEND WA_EMAIL TO IT_EMAIL.
+*
+*              MOVE 'saleem.ahmed@nfoods.com' TO WA_EMAIL-EMAIL.
+*
+*              APPEND WA_EMAIL TO IT_EMAIL.
+
+
+
+*+++++++++++++-------- Email sending Code --------------++++++++++++"
+
+                  LOOP AT IT_EMAIL INTO WA_EMAIL.
+                    TRY.
+                        "Create send request
+                        GR_SEND_REQUEST = CL_BCS=>CREATE_PERSISTENT( ).
+                        "Email FROM...
+                        GR_SENDER = CL_SAPUSER_BCS=>CREATE( 'BGUSER' ).
+                        "Add sender to send request
+
+                        CALL METHOD GR_SEND_REQUEST->SET_SENDER
+                          EXPORTING
+                            I_SENDER = GR_SENDER.
+                        GV_EMAIL = WA_EMAIL-EMAIL.
+                        GR_RECIPIENT = CL_CAM_ADDRESS_BCS=>CREATE_INTERNET_ADDRESS( GV_EMAIL ).
+
+                        "Add recipient to send request
+                        CALL METHOD GR_SEND_REQUEST->ADD_RECIPIENT
+                          EXPORTING
+                            I_RECIPIENT = GR_RECIPIENT
+                            I_EXPRESS   = 'X'.
+
+                        "Email Body
+
+                        CONCATENATE 'Dear' 'User,' INTO GV_TEXT9 SEPARATED BY ' '.
+
+                        APPEND GV_TEXT1 TO GV_TEXT.
+                        APPEND GV_TEXT9 TO GV_TEXT.
+
+                        CLEAR GV_TEXT2.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+
+                        APPEND 'A GR has been posted for Raw Material after the delivery date. GR details are as follows: ' TO GV_TEXT ."separated by ' '.
+
+                        CLEAR GV_TEXT2.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+
+                        CONCATENATE 'Vendor Name: ' ZNAME INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'Vendor No: ' ZLIFNR INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'PO: ' WA_MSEG-EBELN ' Line Item: ' WA_MSEG-EBELP INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+*                CONCATENATE 'PO Quantity: ' ZEKPO_MENGE INTO GV_TEXT2 SEPARATED BY ' '.
+*                APPEND GV_TEXT2 TO GV_TEXT.
+*                CLEAR GV_TEXT2.
+*
+                        CONCATENATE 'Material: ' WA_MSEG-MATNR INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'Material Description: ' ZTXZ01 INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'PO Delivery Date: ' ZEINDT INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'GR Posting Date: ' ZBUDAT INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+                        CONCATENATE 'GR Quantity: ' ZMENGE INTO GV_TEXT2 SEPARATED BY ' '.
+                        APPEND GV_TEXT2 TO GV_TEXT.
+                        CLEAR GV_TEXT2.
+
+
+
+                        GR_DOCUMENT = CL_DOCUMENT_BCS=>CREATE_DOCUMENT(
+                                        I_TYPE    = GC_RAW
+                                        I_TEXT    = GV_TEXT[]
+                                        I_LENGTH  = '500'
+                                        I_SUBJECT = GC_SUBJECT ).
+
+                        FREE GV_TEXT1.
+                        FREE GV_TEXT.
+
+                        "Add document to send request
+                        CALL METHOD GR_SEND_REQUEST->SET_DOCUMENT( GR_DOCUMENT ).
+                        "Send email
+                        CALL METHOD GR_SEND_REQUEST->SEND(
+                          EXPORTING
+                            I_WITH_ERROR_SCREEN = 'X'
+                          RECEIVING
+                            RESULT              = GV_SENT_TO_ALL ).
+*      if itabmail-sta ne 'X'.
+                        IF GV_SENT_TO_ALL = 'X'.
+*       itabmail-sta = 'X'.
+*        MODIFY itabmail TRANSPORTING sta.
+                          WRITE: / 'Email sent!'.
+*      endif.
+                        ENDIF.
+
+                        "Commit to send email
+*                    COMMIT WORK.
+
+
+                        "Exception handling
+                      CATCH CX_BCS INTO GR_BCS_EXCEPTION.
+                        WRITE:
+                          / 'Error!, Email not sent'.",gr_bcs_exception->error_type.
+
+                    ENDTRY.
+
+
+                  ENDLOOP.
+
+                ELSE.
+                  EXIT.
+
+                ENDIF.
+
+            ENDCASE.
+          ENDIF.
+        ENDIF.
+
+        REFRESH IT_EMAIL.
+
+      ENDLOOP.
+
+    ENDIF.
+
+
+******* Low Levels of Inventory**************
+
+    LOOP AT IT_TAB INTO WA_TAB.
+
+      COLLECT WA_TAB INTO IT_TAB1.
+
+    ENDLOOP.
+
+    SORT IT_TAB1 ASCENDING BY MATNR.
+
+    LOOP AT IT_TAB1 INTO WA_TAB1.
+
+      SELECT SUM( LABST + INSME ) FROM MARD INTO @ZTOTAL WHERE MATNR = @WA_TAB1-MATNR AND WERKS = @WA_TAB1-WERKS.
+      SELECT SINGLE EISBE FROM MARC INTO ZEISBE WHERE MATNR = WA_TAB1-MATNR AND WERKS = WA_TAB1-WERKS.
+
+      ZTOTAL = ZTOTAL - WA_TAB1-ZMENGE.
+
+      IF ZTOTAL LE ZEISBE.
+
+        ZTOTAL1 = ZTOTAL.
+        ZEISBE1 = ZEISBE.
+
+        CASE ZMTART. " Second Case
+
+          WHEN 'VERP' .
+            MOVE 'danial.kodvavi@nfoods.com' TO WA_EMAIL-EMAIL.
+
+            APPEND WA_EMAIL TO IT_EMAIL.
+
+            MOVE 'meena.noor@nfoods.com' TO WA_EMAIL-EMAIL.
+
+            APPEND WA_EMAIL TO IT_EMAIL.
+
+            MOVE 'waqar.khan@nfoods.com' TO WA_EMAIL-EMAIL.
+
+            APPEND WA_EMAIL TO IT_EMAIL.
+
+            MOVE 'naushad.ansari@nfoods.com' TO WA_EMAIL-EMAIL.
+
+            APPEND WA_EMAIL TO IT_EMAIL.
+
+          WHEN 'ROH'.
+
+            MOVE 'alfred.sadiq@nfoods.com' TO WA_EMAIL-EMAIL.
+
+            APPEND WA_EMAIL TO IT_EMAIL.
+
+            MOVE 'md.iqbal@nfoods.com' TO WA_EMAIL-EMAIL.
+
+            APPEND WA_EMAIL TO IT_EMAIL.
+
+            MOVE 'mohsin.yaqoob@nfoods.com' TO WA_EMAIL-EMAIL.
+
+            APPEND WA_EMAIL TO IT_EMAIL.
+
+            MOVE 'mussarrat.hussain@nfoods.com' TO WA_EMAIL-EMAIL.
+
+            APPEND WA_EMAIL TO IT_EMAIL.
+
+            MOVE 'naushad.ansari@nfoods.com' TO WA_EMAIL-EMAIL.
+
+            APPEND WA_EMAIL TO IT_EMAIL.
+
+        ENDCASE." second Case
+        LOOP AT IT_EMAIL INTO WA_EMAIL.
+          TRY.
+              "Create send request
+              GR_SEND_REQUEST = CL_BCS=>CREATE_PERSISTENT( ).
+              "Email FROM...
+              GR_SENDER = CL_SAPUSER_BCS=>CREATE( 'BGUSER' ).
+              "Add sender to send request
+
+              CALL METHOD GR_SEND_REQUEST->SET_SENDER
+                EXPORTING
+                  I_SENDER = GR_SENDER.
+              GV_EMAIL = WA_EMAIL-EMAIL.
+              GR_RECIPIENT = CL_CAM_ADDRESS_BCS=>CREATE_INTERNET_ADDRESS( GV_EMAIL ).
+
+              "Add recipient to send request
+              CALL METHOD GR_SEND_REQUEST->ADD_RECIPIENT
+                EXPORTING
+                  I_RECIPIENT = GR_RECIPIENT
+                  I_EXPRESS   = 'X'.
+
+
+              "Email Body
+
+              SHIFT WA_MSEG-MATNR LEFT DELETING LEADING '0'.
+              CONCATENATE 'Dear' 'User,' INTO GV_TEXT9 SEPARATED BY ' '.
+
+              APPEND GV_TEXT1 TO GV_TEXT.
+              APPEND GV_TEXT9 TO GV_TEXT.
+
+              CLEAR GV_TEXT2.
+              APPEND GV_TEXT2 TO GV_TEXT.
+
+              APPEND 'A Consumption has been posted for below mentioned material of which Inventory Level is Low.' TO GV_TEXT . "separated by ' '.
+              CLEAR GV_TEXT2.
+              APPEND GV_TEXT2 TO GV_TEXT.
+
+              CONCATENATE 'Material: ' WA_TAB1-MATNR INTO GV_TEXT2 SEPARATED BY ' '.
+              APPEND GV_TEXT2 TO GV_TEXT.
+              CLEAR GV_TEXT2.
+
+              CONCATENATE 'Material Description: ' WA_TAB1-MAKTX  INTO GV_TEXT2 SEPARATED BY ' '.
+              APPEND GV_TEXT2 TO GV_TEXT.
+              CLEAR GV_TEXT2.
+
+              CONCATENATE 'Material Group:' WA_TAB1-WGBEZ  INTO GV_TEXT2 SEPARATED BY ' '.
+              APPEND GV_TEXT2 TO GV_TEXT.
+              CLEAR GV_TEXT2.
+
+              CONCATENATE 'Plant: ' WA_TAB1-WERKS INTO GV_TEXT2 SEPARATED BY ' '.
+              APPEND GV_TEXT2 TO GV_TEXT.
+              CLEAR GV_TEXT2.
+
+              CONCATENATE 'Available Stock: ' ZTOTAL1 WA_TAB1-ZMEINS INTO GV_TEXT2 SEPARATED BY ' '.
+              APPEND GV_TEXT2 TO GV_TEXT.
+              CLEAR GV_TEXT2.
+
+              CONCATENATE 'Safety Stock: ' ZEISBE1 WA_TAB1-ZMEINS INTO GV_TEXT2 SEPARATED BY ' '.
+              APPEND GV_TEXT2 TO GV_TEXT.
+              CLEAR GV_TEXT2.
+
+
+              IF ( WA_TAB1-BWART EQ '351' OR WA_TAB1-BWART EQ '301' OR WA_TAB1-BWART EQ '303' ).
+
+                DATA: ZZMENGE(15) TYPE C.
+                CLEAR ZZMENGE.
+                ZZMENGE = WA_TAB1-ZMENGE.
+
+                CONCATENATE 'Stock Transfer Quantity: '  ZZMENGE WA_TAB1-ZMEINS INTO GV_TEXT2 SEPARATED BY ' '.
+                APPEND GV_TEXT2 TO GV_TEXT.
+                CLEAR GV_TEXT2.
+
+              ENDIF.
+
+*DATA: LV_SENDER            TYPE ADR6-SMTP_ADDR.
+*        LV_SENDER = 'BGUSER@NFOODS.COM'.
+*        GR_SENDER    = CL_CAM_ADDRESS_BCS=>CREATE_INTERNET_ADDRESS( LV_SENDER ).
+*        GR_SEND_REQUEST->SET_SENDER( I_SENDER ).
+
+              GR_DOCUMENT = CL_DOCUMENT_BCS=>CREATE_DOCUMENT(
+                              I_TYPE    = GC_RAW1
+                              I_TEXT    = GV_TEXT[]
+                              I_LENGTH  = '500'
+                              I_SUBJECT = GC_SUBJECT1 ).
+              FREE GV_TEXT1.
+              FREE GV_TEXT.
+
+              "Add document to send request
+              CALL METHOD GR_SEND_REQUEST->SET_DOCUMENT( GR_DOCUMENT ).
+              "Send email
+              CALL METHOD GR_SEND_REQUEST->SEND(
+                EXPORTING
+                  I_WITH_ERROR_SCREEN = 'X'
+                RECEIVING
+                  RESULT              = GV_SENT_TO_ALL ).
+*      if itabmail-sta ne 'X'.
+              IF GV_SENT_TO_ALL = 'X'.
+*       itabmail-sta = 'X'.
+*        MODIFY itabmail TRANSPORTING sta.
+                WRITE: / 'Email sent!'.
+*      endif.
+              ENDIF.
+
+              "Commit to send email
+*                    COMMIT WORK.
+
+              "Exception handling
+            CATCH CX_BCS INTO GR_BCS_EXCEPTION.
+              WRITE:
+                / 'Error!, Email not sent'.",gr_bcs_exception->error_type.
+
+
+
+          ENDTRY.
+
+
+        ENDLOOP.
+      ENDIF.
+      "first Case
+
+    ENDLOOP.
+
+*******Batch number badi for Price Change Process **********
+***DATA :  "ZMTART TYPE MARA-MTART,
+***
+***        ZAUART TYPE  AUFK-AUART,
+***        ZCHARG TYPE  MSEG-CHARG,
+***        ZVALID_FROM TYPE MKPF-BUDAT.
+***
+***
+***
+***IF WA_MKPF-VGART = 'WF' AND WA_MKPF-BLART = 'WE'.
+***
+***  LOOP AT XMSEG INTO WA_MSEG.
+***
+***    IF WA_MSEG-BWART EQ '101' .
+***
+***  SELECT SINGLE MTART  FROM MARA INTO ( ZMTART )
+***
+***               WHERE  MATNR = WA_MSEG-MATNR.
+***
+***
+***    SELECT SINGLE AUART FROM AUFK INTO ZAUART
+***
+***           WHERE AUFNR = WA_MSEG-AUFNR.
+***
+***   IF ( ZMTART = 'FGLO' OR ZMTART = 'TSCH' ) .
+****     IF ZAUART EQ 'PP01'.
+***
+***   SELECT   CHARG_D  MATNR   valId_from  FROM ZFISD_PRICECHNGE    INTO ( ZCHARG , ZMATNR ,ZVALID_FROM )
+***     UP TO 1 ROWS
+***
+***     WHERE  MATNR = Wa_mseg-matnr order by charg_d ASCENDING.
+***     ENDSELECT.
+***
+***     IF  ( ZCHARG IS INITIAL AND ZMATNR IS NOT INITIAL ) AND ( WA_MKPF-BUDAT >=  ZVALID_FROM ) .
+***
+***       UPDATE  ZFISD_PRICECHNGE SET CHARG_D = WA_MSEG-CHARG
+***       WHERE   MATNR = WA_MSEG-MATNR AND  CHARG_D EQ '' .
+***
+***     ENDIF.
+****   ENDIF.
+***ENDIF.
+***
+***ENDIF.
+***      ENDLOOP.
+***
+***endif.
+
+************+====================================
+*GR TO Vendor
+************+====================================
+    REFRESH: IT_EMAIL.
+    CLEAR WA_EMAIL.
+    TYPES: BEGIN OF TY_VEND,
+             MATNR TYPE MARA-MATNR,
+             MAKTX TYPE MAKT-MAKTX,
+             LIFNR TYPE LFA1-LIFNR,
+             NAME1 TYPE LFA1-NAME1,
+             MENGE TYPE MSEG-MENGE,
+             MEINS TYPE MSEG-MEINS,
+             EBELP TYPE MSEG-EBELP,
+             EBELN TYPE MSEG-EBELN,
+             MBLNR TYPE MSEG-MBLNR,
+             XBLNR TYPE MKPF-XBLNR,
+             BUDAT TYPE MKPF-BUDAT,
+             NETPR TYPE EKPO-NETPR,
+             RMENG TYPE MSEG-MENGE,
+             TMENG TYPE MSEG-MENGE,
+             LBLNI TYPE ESSR-LBLNI, "'included
+             BSART TYPE EKKO-BSART, "'included
+             TOMENG TYPE MSEG-MENGE, "includedd
+             ANLN1  TYPE ANLN1, " included
+             ANLHTXT TYPE ANLHTXT, "included
+             TXZ01 TYPE EKPO-TXZ01, "included
+             KTEXT1 TYPE ESLL-KTEXT1, "included
+             SRVPOS TYPE ESLL-SRVPOS, "included
+             BKTXT TYPE MKPF-BKTXT, "included
+           END OF TY_VEND.
+
+    DATA: IT_TAB_VEND TYPE TABLE OF TY_VEND,
+          WA_TAB_VEND TYPE TY_VEND,
+          IT_ZEMAIL_TAB TYPE TABLE OF ZCC_EMAIL_TAB.
+
+    DATA: LV_WEMNG TYPE EKET-WEMNG,
+          LV_MENGE TYPE EKET-MENGE.
+    DATA: ZRMENG TYPE STRING,
+          ZNETPR TYPE STRING,
+          ZTMENG TYPE STRING,
+          ZTOMENG TYPE STRING,
+          ZPACKNO TYPE STRING,
+          LV_BSART TYPE EKKO-BSART,
+          ZBOOLEAN_EMAIL TYPE c LENGTH 1.
+    DATA: LV_STAT TYPE C LENGTH 10.
+    DATA: GC_SUBJECT2 TYPE SO_OBJ_DES.
+
+*###############################################################################################################
+****************************************************************************************************************
+***********************************  BEGIN OF CODE 6-Feb-2023 Faryal Zaidi TMC *********************************
+****************************************************************************************************************
+
+select * FROM ZCC_EMAIL_TAB INTO TABLE IT_ZEMAIL_TAB.
+
+clear ZBOOLEAN_EMAIL.
+IF XMSEG IS NOT INITIAL.
+
+LOOP AT XMSEG INTO WA_MSEG.
+CLEAR LV_BSART.
+  SELECT SINGLE BSART FROM EKKO INTO LV_BSART WHERE EBELN eq WA_MSEG-EBELN.
+
+                    IF LV_BSART = 'FO'
+                    OR LV_BSART = 'GB'
+                    OR LV_BSART = 'GUB'
+                    OR LV_BSART = 'NB'
+                    OR LV_BSART = 'NUB'
+                    OR LV_BSART = 'OB'
+                    OR LV_BSART = 'PB'
+                    OR LV_BSART = 'RB'
+                    OR LV_BSART = 'SB'
+                    OR LV_BSART = 'ZCAP'
+                    OR LV_BSART = 'ZCMP'
+                    OR LV_BSART = 'ZCSP'
+                    OR LV_BSART = 'CB'
+                    OR LV_BSART = 'AB' .
+
+
+
+          IF WA_MSEG-BWART = '102' OR WA_MSEG-BWART = '122' OR WA_MSEG-BWART = '161' OR WA_MSEG-BWART = '101' OR WA_MSEG-BWART = '123' OR WA_MSEG-BWART = '162'.
+
+            CLEAR: ZMTART, ZMENGE, ZRMENG, LV_MENGE, LV_WEMNG, WA_TAB_VEND, LV_STAT.
+            REFRESH: IT_EMAIL.
+
+*            IF WA_MSEG-MATNR IS NOT INITIAL.
+*              SELECT SINGLE MTART FROM MARA INTO ( ZMTART ) WHERE MATNR = WA_MSEG-MATNR.
+*            ENDIF.
+*            IF WA_MSEG-KZBEW = 'B' AND ( ZMTART = 'VERP' OR ZMTART = 'ROH' ) AND WA_MSEG-KZZUG IS INITIAL.
+*              WA_TAB_VEND-MATNR = WA_MSEG-MATNR.
+
+              "MATERIAL and MATERIAL DESCRIPTION
+              SELECT SINGLE MAKTX, MATNR FROM MAKT INTO @DATA(wa_makt) WHERE MATNR = @WA_MSEG-MATNR.                      "Material Desc
+              WA_TAB_VEND-MATNR = wa_makt-matnr.
+              WA_TAB_VEND-MAKTX = wa_makt-maktx.
+              " VENDOR
+              SELECT SINGLE LIFNR EKGRP FROM EKKO
+                  INTO ( WA_TAB_VEND-LIFNR, ZEKGRP ) WHERE EBELN = WA_MSEG-EBELN.
+
+              SELECT SINGLE NAME1 ADRNR FROM LFA1
+                  INTO ( WA_TAB_VEND-NAME1, ZADRNR ) WHERE LIFNR = WA_TAB_VEND-LIFNR.
+
+              SELECT SMTP_ADDR AS EMAIL FROM ADR6 INTO CORRESPONDING FIELDS OF TABLE IT_EMAIL                                            "Vendor Email
+                  WHERE ADDRNUMBER EQ ZADRNR.
+
+              WA_TAB_VEND-BSART = LV_BSART.
+              WA_TAB_VEND-EBELN = WA_MSEG-EBELN.                                                                     "PO
+              WA_TAB_VEND-EBELP = WA_MSEG-EBELP.                                                                     "Item No
+              WA_TAB_VEND-MBLNR = WA_MSEG-MBLNR.                                                                     "Material Document No.:
+              WA_TAB_VEND-XBLNR = WA_MKPF-XBLNR.                                                                     "Delivery Note:
+              WA_TAB_VEND-BUDAT = WA_MKPF-BUDAT.                                                                     "GR Posting Date:
+              WA_TAB_VEND-BKTXT = WA_MKPF-BKTXT.
+              WA_TAB_VEND-MATNR = WA_MSEG-MATNR.
+              WA_TAB_VEND-ANLN1 = WA_MSEG-ANLN1.
+
+              SELECT SINGLE MENGE WEMNG INTO ( LV_MENGE, LV_WEMNG ) FROM EKET
+                WHERE EBELN EQ WA_TAB_VEND-EBELN AND EBELP EQ WA_TAB_VEND-EBELP.
+************Net Order Price:
+              SELECT SINGLE NETPR INTO WA_TAB_VEND-NETPR FROM EKPO
+                WHERE EBELN EQ WA_TAB_VEND-EBELN AND EBELP EQ WA_TAB_VEND-EBELP.                                     "Net Price
+
+        IF WA_MSEG-BWART = '101' OR WA_MSEG-BWART = '123' OR WA_MSEG-BWART = '162'.
+                WA_TAB_VEND-MENGE = WA_MSEG-ERFMG + LV_WEMNG.  "WA_MSEG-MENGE                                       "Quantity Posted:
+                CONCATENATE 'GR Posting Alert for PO ' WA_TAB_VEND-EBELN '/' WA_TAB_VEND-EBELP INTO GC_SUBJECT2.
+                LV_STAT = 'posted'.
+              ELSEIF WA_MSEG-BWART = '102' OR WA_MSEG-BWART = '122' OR WA_MSEG-BWART = '161'.
+                WA_TAB_VEND-MENGE = LV_WEMNG - WA_MSEG-ERFMG.  "WA_MSEG-MENGE                                                      "GR Qty Posted
+                CONCATENATE 'GR Reversal Alert for PO ' WA_TAB_VEND-EBELN '/' WA_TAB_VEND-EBELP INTO GC_SUBJECT2.
+                LV_STAT = 'reversed'.
+         ENDIF.
+              WA_TAB_VEND-MEINS = WA_MSEG-MEINS.
+        IF WA_MSEG-BWART NE '161' OR WA_MSEG-BWART NE '162'.
+           if not ( LV_BSART EQ 'SB' OR LV_BSART EQ 'ZCSP' ).
+                WA_TAB_VEND-RMENG = LV_MENGE - WA_TAB_VEND-MENGE.                                               "Remaining Qty in PO:
+                WA_TAB_VEND-TOMENG = LV_MENGE.                                                                  "Total Order Quantity in PO:
+                WA_TAB_VEND-TMENG = WA_TAB_VEND-MENGE.                                                          "Total Qty Received in PO:
+
+           else.
+                WA_TAB_VEND-RMENG = 0.                   "Remaining Qty in PO:
+                WA_TAB_VEND-TOMENG = 0.                  "Total Order Quantity in PO:
+                WA_TAB_VEND-TMENG = 0.                   "Total Qty Received in PO:
+           endif.
+
+         ENDIF.
+
+*************Service SES:  WA_MSEG-LFBNR
+              SELECT SINGLE LBLNI INTO WA_TAB_VEND-LBLNI FROM ESSR
+                WHERE EBELN EQ WA_TAB_VEND-EBELN .
+
+***       if IT_ZEMAIL_TAB IS NOT INITIAL.
+
+**                  READ TABLE IT_ZEMAIL_TAB INTO DATA(wa_zemail) WITH KEY ZZMGCC = 'CC'.
+**                  if wa_zemail IS NOT INITIAL.
+**                  WA_EMAIL-EMAIL = wa_zemail-zzemail.
+**                  clear wa_zemail.
+**                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+**                  endif.
+
+                  loop at IT_ZEMAIL_TAB INTO DATA(wa_zemail) WHERE ZZMGCC = 'CC'.
+                  if wa_zemail IS NOT INITIAL.
+                  WA_EMAIL-EMAIL = wa_zemail-zzemail.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+                  clear : WA_EMAIL, wa_zemail.
+                  endif.
+                  endloop.
+                  clear wa_zemail.
+
+
+
+                  loop at IT_ZEMAIL_TAB INTO wa_zemail WHERE zzekgrp = ZEKGRP AND ZZMGCC = 'BCC'.
+                  if wa_zemail IS NOT INITIAL.
+                  WA_EMAIL-EMAIL = wa_zemail-zzemail.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+                  clear : WA_EMAIL, wa_zemail.
+                  endif.
+                  endloop.
+
+***       else.
+***
+***              WA_EMAIL-EMAIL = 'sufyan.saleem@nfoods.com'.
+***              APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***              CASE ZEKGRP.
+***                WHEN 'PPR'.
+***
+***                  WA_EMAIL-EMAIL = 'mussarrat.hussain@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***                  WA_EMAIL-EMAIL = 'md.iqbal@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***                  WA_EMAIL-EMAIL = 'mohsin.yaqoob@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***                  WA_EMAIL-EMAIL = 'naushad.ansari@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***                WHEN 'PEX'.
+***
+***
+***                  WA_EMAIL-EMAIL = 'abdul.salam@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***                  WA_EMAIL-EMAIL = 'huba.kamal@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***                  WA_EMAIL-EMAIL = 'waqar.k@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***                WHEN 'PPP'.
+***                  WA_EMAIL-EMAIL = 'naushad.ansari@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***                  WA_EMAIL-EMAIL = 'waqar.k@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***                  WA_EMAIL-EMAIL = 'meena.noor@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***
+***                  WA_EMAIL-EMAIL = 'danial.kodvavi@nfoods.com'.
+***                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+***                WHEN OTHERS.
+***              ENDCASE.
+***
+***       endif.
+
+
+
+              TRY.
+                  "Create send request
+                  GR_SEND_REQUEST = CL_BCS=>CREATE_PERSISTENT( ).
+                  "Email FROM...
+                  GR_SENDER = CL_SAPUSER_BCS=>CREATE( 'BGUSER' ).
+                  "Add sender to send request
+
+                  CALL METHOD GR_SEND_REQUEST->SET_SENDER
+                    EXPORTING
+                      I_SENDER = GR_SENDER.
+                  LOOP AT IT_EMAIL INTO WA_EMAIL.
+                    GV_EMAIL = WA_EMAIL-EMAIL.
+                    GR_RECIPIENT = CL_CAM_ADDRESS_BCS=>CREATE_INTERNET_ADDRESS( GV_EMAIL ).
+
+                    "Add recipient to send request
+                    CALL METHOD GR_SEND_REQUEST->ADD_RECIPIENT
+                      EXPORTING
+                        I_RECIPIENT = GR_RECIPIENT
+                        I_EXPRESS   = 'X'.
+                  ENDLOOP.
+
+                  "CC Email
+                  LOOP AT IT_EMAIL_CC INTO WA_EMAIL_CC.
+                    GV_EMAIL = WA_EMAIL_CC-EMAIL.
+                    GR_RECIPIENT = CL_CAM_ADDRESS_BCS=>CREATE_INTERNET_ADDRESS( GV_EMAIL ).
+                    CALL METHOD GR_SEND_REQUEST->ADD_RECIPIENT
+                      EXPORTING
+                        I_RECIPIENT = GR_RECIPIENT
+                        I_EXPRESS   = 'X'
+                        I_COPY      = 'X'.
+                  ENDLOOP.
+                  "Email Body
+
+                  CONCATENATE 'Dear' 'Supplier,' INTO GV_TEXT9 SEPARATED BY ' '.
+
+                  APPEND GV_TEXT1 TO GV_TEXT.
+                  APPEND GV_TEXT9 TO GV_TEXT.
+
+                  CLEAR GV_TEXT2.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+
+                  CONCATENATE 'A GR document has been ' LV_STAT ' with following details,' INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+
+                  CONCATENATE 'PO Doc Type: '  WA_TAB_VEND-BSART INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+                    EXPORTING
+                      INPUT  = WA_TAB_VEND-MATNR
+                    IMPORTING
+                      OUTPUT = WA_TAB_VEND-MATNR.
+
+
+                  if ( LV_BSART EQ 'ZCAP' OR LV_BSART EQ 'AB' ).
+
+                  CONCATENATE 'Asset Code: ' WA_TAB_VEND-ANLN1 INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+                  SELECT SINGLE TXT50 FROM ANLA INTO WA_TAB_VEND-ANLHTXT WHERE ANLN1 = WA_TAB_VEND-ANLN1.
+                  CONCATENATE 'Asset Description: ' WA_TAB_VEND-ANLHTXT INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  elseif ( LV_BSART EQ 'SB' OR LV_BSART EQ 'ZCSP' ).
+
+
+                  SELECT SINGLE TXZ01 PACKNO FROM EKPO INTO ( WA_TAB_VEND-TXZ01 , ZPACKNO ) WHERE EBELN = WA_TAB_VEND-EBELN.
+
+                  SELECT SINGLE SUB_PACKNO FROM ESLL INTO @DATA(lv_sub_packno) WHERE PACKNO = @ZPACKNO.
+                  SELECT SINGLE KTEXT1 SRVPOS MENGE ACT_MENGE FROM ESLL INTO ( WA_TAB_VEND-KTEXT1 , WA_TAB_VEND-SRVPOS, WA_TAB_VEND-TOMENG, WA_TAB_VEND-TMENG ) WHERE PACKNO = lv_sub_packno.
+                  WA_TAB_VEND-RMENG = WA_TAB_VEND-TOMENG - WA_TAB_VEND-TMENG.                                                      "Remaining Qty
+
+
+                  CONCATENATE 'Service Code: ' WA_TAB_VEND-SRVPOS INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'Service Short Text: ' WA_TAB_VEND-KTEXT1 INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'Service Description: ' WA_TAB_VEND-TXZ01 INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  else.
+
+                  CONCATENATE 'Material Code: ' WA_TAB_VEND-MATNR INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'Material Description: ' WA_TAB_VEND-MAKTX INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  endif.
+
+                  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+                    EXPORTING
+                      INPUT  = WA_TAB_VEND-LIFNR
+                    IMPORTING
+                      OUTPUT = WA_TAB_VEND-LIFNR.
+
+                  CONCATENATE 'Vendor: ' WA_TAB_VEND-LIFNR WA_TAB_VEND-NAME1 INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  IF WA_MSEG-BWART = '102' OR WA_MSEG-BWART = '122' OR WA_MSEG-BWART = '161'.
+*                    ZMENGE = ( WA_MSEG-MENGE * -1 ).
+                    ZMENGE = ( WA_MSEG-ERFMG * -1 ).
+                    if ( LV_BSART EQ 'SB' OR LV_BSART EQ 'ZCSP' ).
+                    WA_TAB_VEND-TMENG = WA_TAB_VEND-TMENG - ZMENGE.
+                    WA_TAB_VEND-RMENG = WA_TAB_VEND-RMENG + ZMENGE.
+
+                    endif.
+                  ELSE.
+*                    ZMENGE = ( WA_MSEG-MENGE ).
+                    ZMENGE = ( WA_MSEG-ERFMG ).            "Quantity Posted:
+                    if ( LV_BSART EQ 'SB' OR LV_BSART EQ 'ZCSP' ).
+                     WA_TAB_VEND-TMENG = WA_TAB_VEND-TMENG + ZMENGE.
+                     WA_TAB_VEND-RMENG = WA_TAB_VEND-RMENG - ZMENGE.
+
+                     endif.
+                  ENDIF.
+*BREAK-POINT.
+                  if WA_TAB_VEND-BKTXT IS NOT INITIAL.
+                  CONCATENATE 'Doc.Header Text: ' WA_TAB_VEND-BKTXT INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+                  endif.
+
+                  CONCATENATE 'Quantity Posted: ' ZMENGE WA_TAB_VEND-MEINS INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'PO: ' WA_TAB_VEND-EBELN ' Line Item: ' WA_TAB_VEND-EBELP INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'Material Document No.: ' WA_TAB_VEND-MBLNR INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'Delivery Note: ' WA_TAB_VEND-XBLNR INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'GR Posting Date: ' WA_TAB_VEND-BUDAT+6(2) '.' WA_TAB_VEND-BUDAT+4(2) '.' WA_TAB_VEND-BUDAT(4) INTO GV_TEXT2.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  ZNETPR = WA_TAB_VEND-NETPR.
+                  CONCATENATE 'Net Order Price: ' ZNETPR INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+                  IF WA_MSEG-BWART NE '161'.
+                    IF WA_MSEG-BWART NE '162'.
+                      ZRMENG = WA_TAB_VEND-RMENG.
+                      CONCATENATE 'Remaining Qty in PO: ' ZRMENG WA_TAB_VEND-MEINS INTO GV_TEXT2 SEPARATED BY ' '.
+                      APPEND GV_TEXT2 TO GV_TEXT.
+                      CLEAR GV_TEXT2.
+
+                      ZTOMENG = WA_TAB_VEND-TOMENG.
+                      CONCATENATE 'Total Order Quantity in PO: ' ZTOMENG WA_TAB_VEND-MEINS INTO GV_TEXT2 SEPARATED BY ' '.
+                      APPEND GV_TEXT2 TO GV_TEXT.
+                      CLEAR GV_TEXT2.
+
+                      ZTMENG = WA_TAB_VEND-TMENG.
+                      CONCATENATE 'Total Qty Received in PO: ' ZTMENG WA_TAB_VEND-MEINS INTO GV_TEXT2 SEPARATED BY ' '.
+                      APPEND GV_TEXT2 TO GV_TEXT.
+                      CLEAR GV_TEXT2.
+
+                    ENDIF.
+                  ENDIF.
+
+                  if ( LV_BSART EQ 'SB' OR LV_BSART EQ 'ZCSP' ). "WA_MSEG-LFBNR
+                      CONCATENATE 'Service SES: '  WA_MSEG-LFBNR INTO GV_TEXT2 SEPARATED BY ' '. "WA_TAB_VEND-LBLNI
+                      APPEND GV_TEXT2 TO GV_TEXT.
+                      CLEAR GV_TEXT2.
+                  endif.
+
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  GV_TEXT2 = 'If you find any discrepancy in this transaction, kindly get back to concerns within 07 working days. Invoice(s) must contain "Material Document No." and Invoice without GR reference won''t be entertained.'.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  GV_TEXT2 = 'Please send/submit your invoice to vendor portal at NFL.com'.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  GV_TEXT2 = 'Thank you,'.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  GV_TEXT2 = 'Regards,'.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  GV_TEXT2 = 'National Foods Limited.'.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+
+                  GR_DOCUMENT = CL_DOCUMENT_BCS=>CREATE_DOCUMENT(
+                                  I_TYPE    = GC_RAW
+                                  I_TEXT    = GV_TEXT[]
+                                  I_LENGTH  = '500'
+                                  I_SUBJECT = GC_SUBJECT2 ).
+
+                  FREE GV_TEXT1.
+                  FREE GV_TEXT.
+
+                  "Add document to send request
+                  CALL METHOD GR_SEND_REQUEST->SET_DOCUMENT( GR_DOCUMENT ).
+                  "Send email
+                  CALL METHOD GR_SEND_REQUEST->SEND(
+                    EXPORTING
+                      I_WITH_ERROR_SCREEN = 'X'
+                    RECEIVING
+                      RESULT              = GV_SENT_TO_ALL ).
+                  IF GV_SENT_TO_ALL = 'X'.
+                    WRITE: / 'Email sent!'.
+                    ZBOOLEAN_EMAIL = 'X'.
+                  ENDIF.
+
+                  "Exception handling
+                CATCH CX_BCS INTO GR_BCS_EXCEPTION.
+                  WRITE:
+                    / 'Error!, Email not sent'.",gr_bcs_exception->error_type.
+
+              ENDTRY.
+              REFRESH: IT_EMAIL_CC, IT_EMAIL.
+              CLEAR wa_makt.
+*            ENDIF.
+
+
+
+
+           ENDIF.
+
+  ENDIF.
+ENDLOOP.
+ENDIF.
+
+
+
+****************************************************************************************************************
+***********************************  END OF CODE 6-Feb-2023 Faryal Zaidi TMC ***********************************
+****************************************************************************************************************
+*###############################################################################################################
+
+
+
+if ZBOOLEAN_EMAIL NE 'X'.
+    IF XMKPF IS NOT INITIAL.
+
+      READ TABLE XMKPF INTO WA_MKPF INDEX 1.
+      IF ( WA_MKPF-VGART = 'WQ' AND WA_MKPF-BLART = 'WA' ) OR ( WA_MKPF-VGART = 'WE' AND WA_MKPF-BLART = 'WE' ).
+        LOOP AT XMSEG INTO WA_MSEG.
+          IF WA_MSEG-BWART = '102' OR WA_MSEG-BWART = '122' OR WA_MSEG-BWART = '161' OR WA_MSEG-BWART = '101' OR WA_MSEG-BWART = '123' OR WA_MSEG-BWART = '162'.
+
+            CLEAR: ZMTART, ZMENGE, ZRMENG, LV_MENGE, LV_WEMNG, WA_TAB_VEND, LV_STAT.
+            REFRESH: IT_EMAIL.
+
+            IF WA_MSEG-MATNR IS NOT INITIAL.
+              SELECT SINGLE MTART FROM MARA INTO ( ZMTART ) WHERE MATNR = WA_MSEG-MATNR.
+            ENDIF.
+            IF WA_MSEG-KZBEW = 'B' AND ( ZMTART = 'VERP' OR ZMTART = 'ROH' ) AND WA_MSEG-KZZUG IS INITIAL.
+              WA_TAB_VEND-MATNR = WA_MSEG-MATNR.                                                                     "Material
+              SELECT SINGLE MAKTX FROM MAKT INTO WA_TAB_VEND-MAKTX WHERE MATNR = WA_TAB_VEND-MATNR.                      "Material Desc
+
+              SELECT SINGLE LIFNR EKGRP FROM EKKO                                                                          "Vendor
+                  INTO ( WA_TAB_VEND-LIFNR, ZEKGRP ) WHERE EBELN = WA_MSEG-EBELN.
+              SELECT SINGLE NAME1 ADRNR FROM LFA1
+                  INTO ( WA_TAB_VEND-NAME1, ZADRNR ) WHERE LIFNR = WA_TAB_VEND-LIFNR.
+
+              SELECT SMTP_ADDR AS EMAIL FROM ADR6 INTO CORRESPONDING FIELDS OF TABLE IT_EMAIL                                            "Vendor Email
+                  WHERE ADDRNUMBER EQ ZADRNR.
+
+
+              WA_TAB_VEND-EBELN = WA_MSEG-EBELN.                                                                     "PO
+              WA_TAB_VEND-EBELP = WA_MSEG-EBELP.                                                                     "Item No
+              WA_TAB_VEND-MBLNR = WA_MSEG-MBLNR.                                                                     "Material Doc
+              WA_TAB_VEND-XBLNR = WA_MKPF-XBLNR.                                                                     "Delivery Note
+              WA_TAB_VEND-BUDAT = WA_MKPF-BUDAT.                                                                     "Posting Date
+
+              SELECT SINGLE MENGE WEMNG INTO ( LV_MENGE, LV_WEMNG ) FROM EKET
+                WHERE EBELN EQ WA_TAB_VEND-EBELN AND EBELP EQ WA_TAB_VEND-EBELP.
+
+              SELECT SINGLE NETPR INTO WA_TAB_VEND-NETPR FROM EKPO
+                WHERE EBELN EQ WA_TAB_VEND-EBELN AND EBELP EQ WA_TAB_VEND-EBELP.                                     "Net Price
+*              BREAK-POINT.
+              IF WA_MSEG-BWART = '101' OR WA_MSEG-BWART = '123' OR WA_MSEG-BWART = '162'.
+                WA_TAB_VEND-MENGE = WA_MSEG-MENGE + LV_WEMNG.                                                        "GR Qty Posted
+                CONCATENATE 'GR Posting Alert for PO ' WA_TAB_VEND-EBELN '/' WA_TAB_VEND-EBELP INTO GC_SUBJECT2.
+                LV_STAT = 'posted'.
+              ELSEIF WA_MSEG-BWART = '102' OR WA_MSEG-BWART = '122' OR WA_MSEG-BWART = '161'.
+                WA_TAB_VEND-MENGE = LV_WEMNG - WA_MSEG-MENGE.                                                        "GR Qty Posted
+                CONCATENATE 'GR Reversal Alert for PO ' WA_TAB_VEND-EBELN '/' WA_TAB_VEND-EBELP INTO GC_SUBJECT2.
+                LV_STAT = 'reversed'.
+              ENDIF.
+              WA_TAB_VEND-MEINS = WA_MSEG-MEINS.
+              IF WA_MSEG-BWART NE '161' OR WA_MSEG-BWART NE '162'.
+                WA_TAB_VEND-RMENG = LV_MENGE - WA_TAB_VEND-MENGE.                                                      "Remaining Qty
+                WA_TAB_VEND-TMENG = WA_TAB_VEND-MENGE.                                                                 "Total Qty
+              ENDIF.
+
+              WA_EMAIL-EMAIL = 'sufyan.saleem@nfoods.com'.
+              APPEND WA_EMAIL TO IT_EMAIL_CC.
+              CASE ZEKGRP.
+                WHEN 'PPR'.
+                  WA_EMAIL-EMAIL = 'mussarrat.hussain@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+
+                  WA_EMAIL-EMAIL = 'md.iqbal@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+
+                  WA_EMAIL-EMAIL = 'mohsin.yaqoob@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+
+                  WA_EMAIL-EMAIL = 'naushad.ansari@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+                WHEN 'PEX'.
+                  WA_EMAIL-EMAIL = 'abdul.salam@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+
+                  WA_EMAIL-EMAIL = 'huba.kamal@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+
+                  WA_EMAIL-EMAIL = 'waqar.k@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+
+                WHEN 'PPP'.
+                  WA_EMAIL-EMAIL = 'naushad.ansari@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+
+                  WA_EMAIL-EMAIL = 'waqar.k@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+
+                  WA_EMAIL-EMAIL = 'meena.noor@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+
+                  WA_EMAIL-EMAIL = 'danial.kodvavi@nfoods.com'.
+                  APPEND WA_EMAIL TO IT_EMAIL_CC.
+                WHEN OTHERS.
+              ENDCASE.
+
+
+
+              TRY.
+                  "Create send request
+                  GR_SEND_REQUEST = CL_BCS=>CREATE_PERSISTENT( ).
+                  "Email FROM...
+                  GR_SENDER = CL_SAPUSER_BCS=>CREATE( 'BGUSER' ).
+                  "Add sender to send request
+
+                  CALL METHOD GR_SEND_REQUEST->SET_SENDER
+                    EXPORTING
+                      I_SENDER = GR_SENDER.
+                  LOOP AT IT_EMAIL INTO WA_EMAIL.
+                    GV_EMAIL = WA_EMAIL-EMAIL.
+                    GR_RECIPIENT = CL_CAM_ADDRESS_BCS=>CREATE_INTERNET_ADDRESS( GV_EMAIL ).
+
+                    "Add recipient to send request
+                    CALL METHOD GR_SEND_REQUEST->ADD_RECIPIENT
+                      EXPORTING
+                        I_RECIPIENT = GR_RECIPIENT
+                        I_EXPRESS   = 'X'.
+                  ENDLOOP.
+
+                  "CC Email
+                  LOOP AT IT_EMAIL_CC INTO WA_EMAIL_CC.
+                    GV_EMAIL = WA_EMAIL_CC-EMAIL.
+                    GR_RECIPIENT = CL_CAM_ADDRESS_BCS=>CREATE_INTERNET_ADDRESS( GV_EMAIL ).
+                    CALL METHOD GR_SEND_REQUEST->ADD_RECIPIENT
+                      EXPORTING
+                        I_RECIPIENT = GR_RECIPIENT
+                        I_EXPRESS   = 'X'
+                        I_COPY      = 'X'.
+                  ENDLOOP.
+                  "Email Body
+
+                  CONCATENATE 'Dear' 'Supplier,' INTO GV_TEXT9 SEPARATED BY ' '.
+
+                  APPEND GV_TEXT1 TO GV_TEXT.
+                  APPEND GV_TEXT9 TO GV_TEXT.
+
+                  CLEAR GV_TEXT2.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+
+                  CONCATENATE 'A GR document has been ' LV_STAT ' with following details,' INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+
+                  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+                    EXPORTING
+                      INPUT  = WA_TAB_VEND-MATNR
+                    IMPORTING
+                      OUTPUT = WA_TAB_VEND-MATNR.
+
+                  CONCATENATE 'Material: ' WA_TAB_VEND-MATNR INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'Material Description: ' WA_TAB_VEND-MAKTX INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+                    EXPORTING
+                      INPUT  = WA_TAB_VEND-LIFNR
+                    IMPORTING
+                      OUTPUT = WA_TAB_VEND-LIFNR.
+
+                  CONCATENATE 'Vendor: ' WA_TAB_VEND-LIFNR WA_TAB_VEND-NAME1 INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  IF WA_MSEG-BWART = '102' OR WA_MSEG-BWART = '122' OR WA_MSEG-BWART = '161'.
+                    ZMENGE = ( WA_MSEG-MENGE * -1 ).
+                  ELSE.
+                    ZMENGE = ( WA_MSEG-MENGE ).
+                  ENDIF.
+
+                  CONCATENATE 'Quantity Posted: ' ZMENGE WA_TAB_VEND-MEINS INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'PO: ' WA_TAB_VEND-EBELN ' Line Item: ' WA_TAB_VEND-EBELP INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'Material Document No.: ' WA_TAB_VEND-MBLNR INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'Delivery Note: ' WA_TAB_VEND-XBLNR INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  CONCATENATE 'GR Posting Date: ' WA_TAB_VEND-BUDAT+6(2) '.' WA_TAB_VEND-BUDAT+4(2) '.' WA_TAB_VEND-BUDAT(4) INTO GV_TEXT2.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  ZNETPR = WA_TAB_VEND-NETPR.
+                  CONCATENATE 'Net Order Price: ' ZNETPR INTO GV_TEXT2 SEPARATED BY ' '.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+                  IF WA_MSEG-BWART NE '161'.
+                    IF WA_MSEG-BWART NE '162'.
+                      ZRMENG = WA_TAB_VEND-RMENG.
+                      CONCATENATE 'Remaining Qty in PO: ' ZRMENG WA_TAB_VEND-MEINS INTO GV_TEXT2 SEPARATED BY ' '.
+                      APPEND GV_TEXT2 TO GV_TEXT.
+                      CLEAR GV_TEXT2.
+
+                      ZTMENG = WA_TAB_VEND-TMENG.
+                      CONCATENATE 'Total Qty Received in PO: ' ZTMENG WA_TAB_VEND-MEINS INTO GV_TEXT2 SEPARATED BY ' '.
+                      APPEND GV_TEXT2 TO GV_TEXT.
+                      CLEAR GV_TEXT2.
+                    ENDIF.
+                  ENDIF.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  GV_TEXT2 = 'If you find any discrepancy in this transaction, kindly get back to concerns within 07 working days. Invoice(s) must contain "Material Document No." and Invoice without GR reference won''t be entertained.'.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  GV_TEXT2 = 'Thank you,'.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  GV_TEXT2 = 'Regards,'.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  GV_TEXT2 = 'National Foods Limited.'.
+                  APPEND GV_TEXT2 TO GV_TEXT.
+                  CLEAR GV_TEXT2.
+
+
+                  GR_DOCUMENT = CL_DOCUMENT_BCS=>CREATE_DOCUMENT(
+                                  I_TYPE    = GC_RAW
+                                  I_TEXT    = GV_TEXT[]
+                                  I_LENGTH  = '500'
+                                  I_SUBJECT = GC_SUBJECT2 ).
+
+                  FREE GV_TEXT1.
+                  FREE GV_TEXT.
+
+                  "Add document to send request
+                  CALL METHOD GR_SEND_REQUEST->SET_DOCUMENT( GR_DOCUMENT ).
+                  "Send email
+                  CALL METHOD GR_SEND_REQUEST->SEND(
+                    EXPORTING
+                      I_WITH_ERROR_SCREEN = 'X'
+                    RECEIVING
+                      RESULT              = GV_SENT_TO_ALL ).
+*      if itabmail-sta ne 'X'.
+                  IF GV_SENT_TO_ALL = 'X'.
+*       itabmail-sta = 'X'.
+*        MODIFY itabmail TRANSPORTING sta.
+                    WRITE: / 'Email sent!'.
+*      endif.
+                  ENDIF.
+
+                  "Exception handling
+                CATCH CX_BCS INTO GR_BCS_EXCEPTION.
+                  WRITE:
+                    / 'Error!, Email not sent'.",gr_bcs_exception->error_type.
+
+              ENDTRY.
+**          ENDLOOP.
+              REFRESH: IT_EMAIL_CC, IT_EMAIL.
+            ENDIF.
+          ENDIF.
+        ENDLOOP.                                                                                                   "MSEG Loop End
+      ENDIF.
+    ENDIF.                                                                                                        "MKPF Check End
+
+ENDIF.
+*
+*    IF SY-TCODE EQ 'MIGO' OR SY-TCODE EQ 'MB1A' OR SY-TCODE EQ 'MB1C'.                                             "GR Control
+*      BREAK-POINT.
+*      DATA: LV_FLAG TYPE FLAG.
+*      DATA: LV_AUART TYPE AUART,
+*            LV_OBJNR TYPE OBJNR,
+*            LV_MSG TYPE STRING.
+*      CLEAR LV_STAT.
+*      LOOP AT XMSEG INTO WA_MSEG.
+*        SELECT SINGLE AUART OBJNR INTO ( LV_AUART, LV_OBJNR )
+*          FROM CAUFV WHERE AUFNR EQ WA_MSEG-AUFNR.
+*
+*        IF ( WA_MSEG-BWART = '261' OR WA_MSEG-BWART = '262' ) AND ( LV_AUART EQ 'PP01' OR LV_AUART EQ 'PP02' OR LV_AUART EQ 'PP03').
+*          SELECT SINGLE STAT INTO LV_STAT
+*            FROM JEST
+*            WHERE OBJNR EQ LV_OBJNR AND
+*                  STAT  EQ 'I0045' AND
+*                  INACT EQ ''.
+*          IF LV_STAT EQ 'I0045'.
+*            CONCATENATE 'Order ' WA_MSEG-AUFNR 'is already TECO' INTO LV_MSG SEPARATED BY SPACE.
+*            MESSAGE LV_MSG TYPE 'E'.
+*          ENDIF.
+*.       ELSEIF WA_MSEG-BWART = '101' OR WA_MSEG-BWART = '102' OR WA_MSEG-BWART = '531' OR WA_MSEG-BWART = '532' OR WA_MSEG-BWART = '541' OR WA_MSEG-BWART = '542'.
+*        ENDIF.
+*
+*        CLEAR: LV_AUART, LV_OBJNR, LV_STAT.
+*      ENDLOOP.
+*    ENDIF.
+  ENDMETHOD.
